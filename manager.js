@@ -18,17 +18,9 @@ const closeSelected = document.querySelector("#close-selected");
 const status = document.querySelector("#status");
 const managerUrl = chrome.runtime.getURL("manager.html");
 
-const domainLabels = new Map([
-  ["github.com", "GitHub"],
-  ["docs.google.com", "Google 文档"],
-  ["drive.google.com", "Google 云端硬盘"],
-  ["mail.google.com", "Gmail"],
-  ["calendar.google.com", "Google 日历"],
-  ["notion.so", "Notion"],
-]);
-
 const cards = new Map();
 const groups = new Map();
+let domainLabels = new Map();
 let closableIds = new Set();
 let selected = new Set();
 let manager;
@@ -78,6 +70,32 @@ async function getNativeGroupDetails(tabs) {
   }
 }
 
+function normalizeHostname(hostname) {
+  const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
+  return normalized.replace(/^www\./, "") || normalized;
+}
+
+async function loadDomainLabels() {
+  const labels = new Map();
+  try {
+    const directory = await chrome.runtime.getPackageDirectoryEntry();
+    const entry = await new Promise((resolve, reject) => {
+      directory.getFile("domain-labels.local.json", {}, resolve, reject);
+    });
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    const config = JSON.parse(await file.text());
+    if (!config || typeof config !== "object" || Array.isArray(config)) return labels;
+
+    for (const [hostname, label] of Object.entries(config)) {
+      const key = normalizeHostname(hostname);
+      if (key && typeof label === "string" && label.trim()) labels.set(key, label.trim());
+    }
+  } catch {
+    // The optional file may be missing or invalid.
+  }
+  return labels;
+}
+
 function getDomain(url) {
   let page;
   try {
@@ -86,8 +104,7 @@ function getDomain(url) {
     return { key: "其他页面", isWebsite: false };
   }
   if (page.protocol === "http:" || page.protocol === "https:") {
-    const hostname = page.hostname.replace(/\.$/, "") || page.hostname;
-    return { key: hostname.replace(/^www\./, "") || hostname, isWebsite: true };
+    return { key: normalizeHostname(page.hostname) || page.hostname, isWebsite: true };
   }
   const names = { "chrome:": "Chrome 页面", "chrome-extension:": "扩展程序页面", "file:": "本地文件" };
   return { key: names[page.protocol] ?? "其他页面", isWebsite: false };
@@ -141,7 +158,8 @@ function groupTabs(tabs, nativeGroupDetails) {
 
     const { key, isWebsite } = getDomain(tab.url || tab.pendingUrl);
     if (!domains.has(key)) {
-      domains.set(key, { key, name: domainLabels.get(key) ?? key, detail: key, isWebsite, entries: [] });
+      const name = isWebsite ? domainLabels.get(key) ?? key : key;
+      domains.set(key, { key, name, detail: key, isWebsite, entries: [] });
     }
     domains.get(key).entries.push(tab);
   }
@@ -560,7 +578,7 @@ closeSelected.addEventListener("click", async event => {
 
 async function initialize() {
   try {
-    manager = await chrome.tabs.getCurrent();
+    [manager, domainLabels] = await Promise.all([chrome.tabs.getCurrent(), loadDomainLabels()]);
     if (!manager) throw new Error("Missing tab for manager");
     for (const event of [chrome.tabs.onCreated, chrome.tabs.onRemoved, chrome.tabs.onMoved,
       chrome.tabs.onAttached, chrome.tabs.onReplaced, chrome.tabGroups?.onCreated,
