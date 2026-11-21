@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "标签页清理",
+  "description": "优先沿用 Chrome 标签页分组，支持整组选中、勾选和拖拽框选后批量关闭。",
+  "version": "2.4.0",
+  "permissions": ["tabs", "tabGroups"],
+  "incognito": "not_allowed",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/window-cleanup-16.png",
+    "32": "icons/window-cleanup-32.png",
+    "48": "icons/window-cleanup-48.png",
+    "128": "icons/window-cleanup-128.png"
+  },
+  "action": {
+    "default_title": "标签页清理",
+    "default_icon": {
+      "16": "icons/window-cleanup-16.png",
+      "32": "icons/window-cleanup-32.png"
+    }
+  }
+}

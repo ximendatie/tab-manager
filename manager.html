@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>标签页清理</title>
+    <link rel="stylesheet" href="manager.css">
+    <script type="module" src="manager.js"></script>
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="container header-content">
+        <div class="heading">
+          <img src="icons/window-cleanup-48.png" class="app-icon" width="32" height="32" alt="">
+          <div>
+            <h1>标签页清理</h1>
+            <p>点击勾选或拖动框选 · <kbd>Delete</kbd> 关闭所选 · <kbd>Esc</kbd> 取消选择</p>
+          </div>
+        </div>
+        <div class="actions" role="group" aria-label="批量操作">
+          <div class="selection-actions">
+            <button id="select-all" type="button" disabled>全选</button>
+            <button id="clear-selection" type="button" aria-keyshortcuts="Escape" disabled>取消选择</button>
+          </div>
+          <button id="close-selected" class="close-button" type="button" aria-keyshortcuts="Delete" disabled>关闭所选</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container content">
+      <div class="board-header">
+        <h2 id="board-title" tabindex="-1">标签页分类</h2>
+        <span id="tab-count"></span>
+        <div id="group-view-actions" class="selection-actions" role="group" aria-label="Chrome 分组展开状态" hidden>
+          <button id="expand-all-groups" type="button" aria-disabled="true">全部展开</button>
+          <button id="collapse-all-groups" type="button" aria-disabled="true">全部折叠</button>
+        </div>
+        <span id="protected-count" class="protection-count" hidden></span>
+      </div>
+      <p id="status" class="status" role="status"></p>
+      <p id="empty-message" class="empty-message">正在读取标签页…</p>
+      <div id="tab-board" class="tab-board" role="group" aria-label="标签页卡片" hidden></div>
+    </main>
+    <div id="selection-box" class="selection-box" aria-hidden="true" hidden></div>
+
+    <template id="domain-template">
+      <section class="domain-group">
+        <div class="domain-header">
+          <span class="domain-color" aria-hidden="true" hidden></span>
+          <h3 class="domain-name" dir="auto"></h3>
+          <span class="domain-count"></span>
+          <label class="domain-select">
+            <input class="group-check" type="checkbox">
+            整组
+          </label>
+        </div>
+        <div class="domain-cards"></div>
+      </section>
+    </template>
+
+    <template id="tab-template">
+      <div class="tab-card">
+        <button class="tab-jump" type="button" title="切换到此标签页">
+          <span aria-hidden="true">↗</span>
+        </button>
+        <label class="tab-selection">
+          <span class="card-content">
+            <span class="tab-title" dir="auto"></span>
+            <span class="tab-context" hidden></span>
+          </span>
+          <span class="tab-control">
+            <input type="checkbox" class="tab-check">
+            <span class="protection-icon" aria-hidden="true"></span>
+          </span>
+        </label>
+      </div>
+    </template>
+  </body>
+</html>
