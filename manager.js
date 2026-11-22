@@ -26,6 +26,7 @@ let selected = new Set();
 let manager;
 let closing = false;
 let syncingGroups = false;
+let reloadingGroup;
 let refreshing = false;
 let refreshNeeded = false;
 let refreshTimer;
@@ -176,7 +177,7 @@ function setGroupCollapsed(grid, disclosure, collapsed) {
 }
 
 async function setGroupsCollapsed(targets, collapsed, batch = false) {
-  if (closing || syncingGroups || targets.length === 0) return;
+  if (closing || syncingGroups || reloadingGroup || targets.length === 0) return;
   syncingGroups = true;
   updateActions();
   setStatus("");
@@ -197,6 +198,31 @@ async function setGroupsCollapsed(targets, collapsed, batch = false) {
     }
   } finally {
     syncingGroups = false;
+    updateActions();
+    queueRefresh();
+  }
+}
+
+async function reloadGroup(key, name) {
+  if (closing || syncingGroups || reloadingGroup) return;
+  reloadingGroup = key;
+  updateActions();
+  setStatus(`正在刷新「${name}」…`);
+  try {
+    const group = groupTabs(await getTabs(), new Map()).find(group => group.key === key);
+    if (!group) {
+      setStatus(`「${name}」中已经没有可刷新的标签页。`);
+      return;
+    }
+    const results = await Promise.allSettled(group.entries.map(async ({ id }) => chrome.tabs.reload(id)));
+    const reloaded = results.filter(result => result.status === "fulfilled").length;
+    const failed = results.length - reloaded;
+    const suffix = failed ? `，${failed} 个未能刷新` : "";
+    setStatus(`「${name}」已发起 ${reloaded} 个标签页的刷新${suffix}。`, failed > 0);
+  } catch {
+    setStatus(`暂时无法读取「${name}」中的标签页，请重试。`, true);
+  } finally {
+    reloadingGroup = undefined;
     updateActions();
     queueRefresh();
   }
@@ -231,6 +257,10 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
   group.querySelector(".domain-count").textContent = `${entries.length} 个`;
   checkbox.value = key;
   checkbox.setAttribute("aria-label", `整组选中 ${name}`);
+  const reload = group.querySelector(".group-reload");
+  reload.value = key;
+  reload.setAttribute("aria-label", `整组刷新 ${name}`);
+  reload.addEventListener("click", () => reloadGroup(key, name));
 
   const grid = group.querySelector(".domain-cards");
   let disclosure;
@@ -247,7 +277,7 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
     disclosure.addEventListener("click", () => setGroupsCollapsed([groups.get(key)], !grid.hidden));
   }
 
-  groups.set(key, { checkbox, disclosure, grid, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
+  groups.set(key, { checkbox, disclosure, grid, reload, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
   for (const tab of entries) {
     grid.append(createCard(tab, windowLabels?.get(tab.windowId) || ""));
   }
@@ -276,10 +306,11 @@ function renderTabs(tabs, nativeGroupDetails) {
 
   setSelection(selected);
   if (focused) {
-    const replacement = focused.matches(".group-check, .domain-disclosure")
+    const replacement = focused.matches(".group-check, .domain-disclosure, .group-reload")
       ? groups.get(focused.value)
       : cards.get(Number(focused.value));
     const control = focused.matches(".domain-disclosure") ? replacement?.disclosure
+      : focused.matches(".group-reload") ? replacement?.reload
       : focused.matches(".tab-jump") ? replacement?.jump : replacement?.checkbox;
     const hiddenGrid = control?.closest(".domain-cards[hidden]");
     const next = hiddenGrid ? hiddenGrid.parentElement.querySelector(".domain-disclosure") : control;
@@ -303,10 +334,13 @@ function updateActions() {
   const protectedTabs = cards.size - closableIds.size;
   protectedCount.hidden = protectedTabs === 0;
   protectedCount.textContent = `${protectedTabs} 个受保护`;
-  const groupActionsDisabled = closing || syncingGroups;
+  const groupActionsDisabled = closing || syncingGroups || reloadingGroup !== undefined;
   let hasExpanded = false;
   let hasCollapsed = false;
-  for (const { checkbox, ids, disclosure, grid } of groups.values()) {
+  for (const [key, { checkbox, ids, disclosure, grid, reload }] of groups) {
+    reload.setAttribute("aria-disabled", String(groupActionsDisabled));
+    const reloadLabel = key === reloadingGroup ? "刷新中" : "刷新";
+    if (reload.textContent !== reloadLabel) reload.textContent = reloadLabel;
     const eligible = ids.filter(id => closableIds.has(id));
     const count = eligible.reduce((total, id) => total + Number(selected.has(id)), 0);
     checkbox.checked = count > 0 && count === eligible.length;
@@ -412,7 +446,7 @@ window.addEventListener("pointerdown", () => { suppressClick = false; }, true);
 
 board.addEventListener("pointerdown", event => {
   if (closing || event.button !== 0 || event.pointerType !== "mouse"
-    || event.target.closest(".domain-select, .domain-disclosure, .tab-jump")) return;
+    || event.target.closest(".domain-select, .domain-disclosure, .group-reload, .tab-jump")) return;
   gesture = {
     pointerId: event.pointerId,
     startX: event.pageX,
@@ -554,7 +588,7 @@ async function requestClosures(ids) {
 }
 
 closeSelected.addEventListener("click", async event => {
-  if (closing || syncingGroups || selected.size === 0) return;
+  if (closing || syncingGroups || reloadingGroup || selected.size === 0) return;
   const restoreKeyboardFocus = event.detail === 0;
   closing = true;
   setStatus("");
