@@ -225,6 +225,8 @@ button:is(:disabled, [aria-disabled="true"]) { color: var(--muted); cursor: defa
   padding: 0 3px 4px;
 }
 
+.domain-favicon { flex: none; object-fit: contain; pointer-events: none; }
+
 .domain-color {
   flex: 0 0 9px;
   block-size: 9px;

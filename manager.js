@@ -202,12 +202,23 @@ async function setGroupsCollapsed(targets, collapsed, batch = false) {
   }
 }
 
-function createGroup({ key, name, detail, color, nativeGroup, entries }, windowLabels) {
+function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries }, windowLabels) {
   const group = domainTemplate.content.firstElementChild.cloneNode(true);
   if (color) {
     const marker = group.querySelector(".domain-color");
     marker.dataset.color = color;
     marker.hidden = false;
+  }
+  if (isWebsite) {
+    const representative = entries.find(tab => tab.url && tab.favIconUrl) ?? entries[0];
+    const favicon = new URL(chrome.runtime.getURL("/_favicon/"));
+    favicon.searchParams.set("pageUrl", representative.url || representative.pendingUrl);
+    favicon.searchParams.set("size", "32");
+    // Give a new favicon on the same page a different image cache key.
+    if (representative.favIconUrl) favicon.searchParams.set("v", representative.favIconUrl);
+    const icon = group.querySelector(".domain-favicon");
+    icon.addEventListener("load", () => { icon.hidden = false; }, { once: true });
+    icon.src = favicon.href;
   }
   const heading = group.querySelector(".domain-name");
   const checkbox = group.querySelector(".group-check");
@@ -587,7 +598,8 @@ async function initialize() {
     }
     chrome.tabs.onUpdated.addListener((id, change) => {
       if (change.pinned === true && closableIds.delete(id)) setSelection(selected);
-      if (id !== manager.id && ("title" in change || "url" in change || "pinned" in change || "groupId" in change)) {
+      if (id !== manager.id && ("title" in change || "url" in change || "pinned" in change
+        || "groupId" in change || "favIconUrl" in change)) {
         queueRefresh();
       }
     });
