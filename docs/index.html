@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tab Manager · 批量关闭 Chrome 和 Ego Lite 标签页</title>
+  <meta name="description" content="在同一个面板整理 Chrome 和 Ego Lite 的跨窗口标签页。按组浏览、拖动框选、批量关闭，并保留固定标签页。">
+  <link rel="canonical" href="https://ximendatie.github.io/tab-manager/">
+  <meta property="og:title" content="Tab Manager · 标签页清理">
+  <meta property="og:description" content="跨窗口分组、拖动框选、批量关闭。已固定的标签页会保留。">
+  <meta property="og:image" content="https://ximendatie.github.io/tab-manager/extension-screenshot.png">
+  <style>
+    :root {
+      color-scheme: light;
+      font: 16px/1.65 system-ui, sans-serif;
+      color: #22263d;
+      background: #f4f5fa;
+      --muted: #505871;
+      --accent: #38449f;
+      --line: #dce0ef;
+      --surface: #fff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .wrap { width: min(1080px, calc(100% - 40px)); margin-inline: auto; }
+    header { background: var(--surface); border-bottom: 1px solid var(--line); }
+    header .wrap, .actions, footer .wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 24px;
+    }
+    header .wrap, footer .wrap { justify-content: space-between; padding-block: 14px; }
+    .brand { color: inherit; font-size: 1.03rem; font-weight: 750; text-decoration: none; }
+    main { padding-block: clamp(36px, 7vw, 84px) 48px; }
+    h1, h2 { margin: 0; line-height: 1.16; }
+    h1 { font-size: clamp(2rem, 6vw, 4.25rem); letter-spacing: -.045em; }
+    h1 span { color: var(--accent); }
+    h2 { font-size: 1.3rem; }
+    p { margin: 0; }
+    .lede { max-width: 43rem; margin-block: 18px 24px; color: var(--muted); font-size: 1.08rem; }
+    a { color: var(--accent); text-underline-offset: .2em; }
+    a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+    .actions a { padding: 9px 15px; border-radius: 8px; font-weight: 650; text-decoration: none; }
+    .primary { color: #fff; background: var(--accent); border: 1px solid var(--accent); }
+    .secondary { background: var(--surface); border: 1px solid var(--line); }
+    .actions { gap: 10px; }
+    figure { margin: 32px 0 0; }
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #353b51;
+      border-radius: 12px;
+      box-shadow: 0 16px 34px rgb(44 55 110 / 13%);
+    }
+    figcaption { margin-top: 12px; color: var(--muted); font-size: .875rem; }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 36px; }
+    .steps section { padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    ol { margin: 12px 0 0; padding-left: 1.35em; }
+    li + li { margin-top: 5px; }
+    code { overflow-wrap: anywhere; }
+    .english { max-width: 49rem; margin-top: 36px; }
+    .english p { margin-block: 10px; color: var(--muted); }
+    footer { border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    @media (max-width: 620px) {
+      .wrap { width: calc(100% - 32px); }
+      .steps { grid-template-columns: 1fr; }
+      .steps section { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="./">Tab Manager · 标签页清理</a>
+      <a href="https://github.com/ximendatie/tab-manager">GitHub</a>
+    </div>
+  </header>
+  <main class="wrap">
+    <h1>批量关闭标签页，<span>保留固定页</span></h1>
+    <p class="lede">Tab Manager 是一款适用于 Chrome 和 Ego Lite 的标签页清理扩展。它汇总当前浏览器个人资料里的各个窗口，保留已有的标签页分组，其余按域名归类。</p>
+    <div class="actions">
+      <a class="primary" href="https://github.com/ximendatie/tab-manager/releases/latest">下载扩展 ZIP</a>
+      <a class="secondary" href="usage.html">打开交互演示</a>
+    </div>
+
+    <figure>
+      <img src="extension-screenshot.png" width="2240" height="688" alt="标签页清理实拍。选框跨越浏览器分组和域名分组，勾选了五个普通页。框内的常用换算表带锁且未勾选。">
+      <figcaption>插件实拍使用示例标签页。框内的五个普通页已勾选，带锁的「常用换算表」会保留。</figcaption>
+    </figure>
+
+    <div class="steps">
+      <section aria-labelledby="install">
+        <h2 id="install">安装扩展</h2>
+        <ol>
+          <li>下载 ZIP 并解压。</li>
+          <li>在 Chrome 或 Ego Lite 打开 <code>chrome://extensions</code>，开启「开发者模式」。</li>
+          <li>点击「加载未打包的扩展程序」，选择包含 <code>manifest.json</code> 的目录。</li>
+        </ol>
+      </section>
+      <section aria-labelledby="close-tabs">
+        <h2 id="close-tabs">选中一批再关闭</h2>
+        <ol>
+          <li>从浏览器工具栏打开「标签页清理」。</li>
+          <li>拖动框选、单击卡片，或勾选组名旁的「整组」。</li>
+          <li>核对后点击「关闭所选」。扩展会跳过固定页。</li>
+        </ol>
+      </section>
+    </div>
+
+    <section class="english" lang="en" aria-labelledby="overview">
+      <h2 id="overview">Bulk-close tabs in Chrome and Ego Lite</h2>
+      <p>Tab Manager shows tabs from all normal windows in your current browser profile. It preserves browser tab groups and groups the remaining tabs by domain. Drag across the tab grid to select tabs, then click <strong>Close selected</strong> (关闭所选). Pinned tabs stay open.</p>
+      <a href="https://github.com/ximendatie/tab-manager#faq-in-english">Read the English FAQ</a>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">
+      <p>Tab Manager 在本地处理标签页标题和网址。</p>
+      <a href="https://github.com/ximendatie/tab-manager#常见问题">查看常见问题</a>
+    </div>
+  </footer>
+</body>
+</html>

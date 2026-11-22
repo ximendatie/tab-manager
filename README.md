@@ -2,6 +2,8 @@
 
 浏览器开了好几个窗口，临时查资料的标签页散得到处都是。逐个翻找再关，既慢又容易关掉还要用的页面。Tab Manager 把各窗口的标签页铺在同一个面板里，优先沿用浏览器已有的标签页分组，其余按域名归类。你可以选好一批一起关，已固定的标签页会保留。
 
+[项目主页 · Project website](https://ximendatie.github.io/tab-manager/)
+
 ## 使用演示
 
 ### 插件实拍
@@ -42,3 +44,39 @@
 保存后刷新管理页。简称只用在按域名归类的组，悬停组名可以查看原域名。配置缺失、格式有误或某个域名未配置时，页面显示原域名。
 
 扩展在本地处理标签页标题、地址和域名简称。配置文件已加入 `.gitignore`，发布包仅提供扩展及使用说明。
+
+## 常见问题
+
+### 能跨窗口批量关闭标签页吗？
+
+可以。面板会汇总当前浏览器个人资料里各个普通窗口的标签页。你可以跨组拖动框选，也可以点击卡片或使用「整组」，再点击「关闭所选」。
+
+### 固定标签页会被框选或关闭吗？
+
+固定页会留在面板里并标有锁。即使框选范围覆盖了固定页，它也不会被选中。点击「关闭所选」后，扩展会再次检查固定状态并跳过已固定的标签页。
+
+### 怎么在 Chrome 或 Ego Lite 安装？
+
+从 GitHub Releases 下载扩展 ZIP 并解压。在地址栏打开 `chrome://extensions`，开启「开发者模式」，点击「加载未打包的扩展程序」，选择包含 `manifest.json` 的目录。
+
+### 标签页标题和域名简称会上传吗？
+
+扩展在本地处理标签页标题和网址。域名简称从本地配置文件读取，未配置时显示原域名。
+
+## FAQ in English
+
+### Can I close tabs across multiple browser windows?
+
+Yes. The dashboard lists tabs from every normal window in the current browser profile. Drag a selection box across groups, click individual cards, or select an entire group, then click **Close selected** (`关闭所选`).
+
+### Does bulk closing affect pinned tabs?
+
+Pinned tabs stay open. Their cards show a lock and are skipped when you drag-select tabs. The extension checks pin status again before closing the selected tabs.
+
+### How do I install Tab Manager in Chrome or Ego Lite?
+
+Download and unzip the extension from GitHub Releases. Open `chrome://extensions`, turn on **Developer mode**, select **Load unpacked**, and choose the folder containing `manifest.json`.
+
+### Does the extension upload my tab titles or domain aliases?
+
+The extension processes tab titles and URLs locally. Custom group labels are read from a local configuration file. If none is configured, groups display their domain names.
