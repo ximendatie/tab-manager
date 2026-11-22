@@ -1,6 +1,6 @@
 # Tab Manager · 标签页清理
 
-**[直接下载 v2.4.2 ZIP][release-zip]** · [安装步骤（Chrome / Ego Lite）](#安装)
+**[直接下载 v2.4.3 ZIP][release-zip]** · [安装步骤（Chrome / Ego Lite）](#安装)
 
 浏览器开了好几个窗口，临时查资料的标签页散得到处都是。逐个翻找再关，既慢又容易关掉还要用的页面。Tab Manager 把各窗口的标签页铺在同一个面板里，优先沿用浏览器已有的标签页分组，其余按域名归类。你可以选好一批一起关，已固定的标签页会保留。
 
@@ -24,7 +24,7 @@
 
 ## 安装
 
-1. [下载 v2.4.2 ZIP][release-zip] 并解压。
+1. [下载 v2.4.3 ZIP][release-zip] 并解压。
 2. 在 Chrome 或 Ego Lite 的地址栏打开 `chrome://extensions`，开启右上角的「开发者模式」。
 3. 点击「加载未打包的扩展程序」，选择解压后包含 `manifest.json` 的 `tab-manager` 文件夹。
 4. 从浏览器工具栏的扩展程序菜单打开「标签页清理」。常用的话，可以点击菜单里的图钉把它固定在工具栏。
@@ -39,15 +39,22 @@
 
 ## 自定义域名组名
 
-默认显示原域名。需要简称时，在 `manifest.json` 同级创建 `domain-labels.local.json`，键填主机名，值填组名。主机名不用写协议、端口或路径，带 `www.` 的地址归入同一组，其他子域名各成一组。
+1. 在域名分组标题旁点击「改名」。
+2. 输入简称，点击「保存」。留空保存会恢复显示原域名。
+
+简称在刷新后仍然保留。Chrome 和 Ego Lite 各自将改名结果保存在当前浏览器的本地个人资料中。悬停组名可查看原域名。
+
+### 沿用本地配置文件
+
+扩展会读取 `manifest.json` 同级的 `domain-labels.local.json`，并在改名弹窗里带入已有简称。面板保存后的设置优先显示。
+
+也可以自行创建配置文件，键填主机名，值填组名。主机名不用写协议、端口或路径，带 `www.` 的地址归入同一组，其他子域名各成一组。
 
 ```json
 { "<域名>": "<显示名称>" }
 ```
 
-保存后刷新管理页。简称只用在按域名归类的组，悬停组名可以查看原域名。配置缺失、格式有误或某个域名未配置时，页面显示原域名。
-
-扩展在本地处理标签页标题、地址和域名简称。配置文件已加入 `.gitignore`，安装说明见本页及 GitHub Release。
+修改文件后刷新管理页。域名没有简称时，面板显示原域名。配置文件已加入 `.gitignore`。
 
 ## 常见问题
 
@@ -65,7 +72,7 @@
 
 ### 标签页标题和域名简称会上传吗？
 
-扩展在本地处理标签页标题和网址。域名简称从本地配置文件读取，未配置时显示原域名。
+扩展在本地处理标签页标题和网址。在面板保存的简称只存在当前浏览器个人资料里，配置文件也只在本机读取。
 
 ## FAQ in English
 
@@ -83,6 +90,6 @@ Download and unzip the extension from GitHub Releases. Open `chrome://extensions
 
 ### Does the extension upload my tab titles or domain aliases?
 
-The extension processes tab titles and URLs locally. Custom group labels are read from a local configuration file. If none is configured, groups display their domain names.
+The extension processes tab titles and URLs locally. Click **Rename** (`改名`) next to a domain group to save a label in the current browser profile. Save an empty label to show the domain again. Existing labels from the optional local configuration file still work.
 
-[release-zip]: https://github.com/ximendatie/tab-manager/releases/download/v2.4.2/tab-manager-v2.4.2.zip
+[release-zip]: https://github.com/ximendatie/tab-manager/releases/download/v2.4.3/tab-manager-v2.4.3.zip

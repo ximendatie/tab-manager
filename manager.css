@@ -393,7 +393,7 @@ button:is(:disabled, [aria-disabled="true"]) { color: var(--muted); cursor: defa
 .domain-select:has(input:disabled) { cursor: default; }
 .domain-select:has(input:is(:checked, :indeterminate)) { color: var(--accent); }
 
-.group-reload {
+.group-reload, .group-rename {
   min-block-size: 26px;
   min-inline-size: 46px;
   padding: 2px 5px;
@@ -404,10 +404,41 @@ button:is(:disabled, [aria-disabled="true"]) { color: var(--muted); cursor: defa
   font-size: 11px;
 }
 
-.group-reload:hover:not([aria-disabled="true"]) {
+.group-reload:hover:not([aria-disabled="true"]), .group-rename:hover:enabled {
   background: var(--raised);
   color: var(--text);
 }
+
+#rename-dialog {
+  inline-size: min(400px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+#rename-dialog::backdrop { background: rgb(9 14 25 / 55%); }
+#rename-form { display: grid; gap: 8px; }
+#rename-title { font-size: 17px; }
+#rename-domain { margin-block-end: 4px; overflow-wrap: anywhere; }
+#rename-domain, #rename-hint { color: var(--muted); font-size: 12px; }
+#rename-form label { font-weight: 600; }
+#rename-input {
+  inline-size: 100%;
+  min-block-size: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+#rename-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#rename-error { color: var(--danger); }
+.rename-actions { display: flex; justify-content: flex-end; gap: 8px; margin-block-start: 4px; }
+#rename-save:enabled { border-color: var(--accent); background: var(--accent); color: var(--page); }
 
 .domain-cards {
   display: grid;
@@ -639,7 +670,7 @@ button:is(:disabled, [aria-disabled="true"]) { color: var(--muted); cursor: defa
   .selection-actions button, .domain-disclosure { min-block-size: 32px; }
   .tab-jump { inline-size: 32px; block-size: 32px; }
   .tab-selection { padding-inline-start: 48px; }
-  .domain-select, .group-reload { min-block-size: 32px; }
+  .domain-select, .group-reload, .group-rename { min-block-size: 32px; }
 }
 
 /* Compact group rows with aligned tab cards. */
@@ -737,7 +768,7 @@ kbd { background: var(--panel); }
 .domain-count { padding: 0; background: none; }
 .domain-disclosure { padding-inline-start: 0; }
 .domain-actions { gap: 4px; }
-.group-reload { min-inline-size: 40px; }
+.group-reload, .group-rename { min-inline-size: 40px; }
 .domain-cards { grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); }
 
 .tab-card {
@@ -782,4 +813,5 @@ kbd { background: var(--panel); }
 
 @media (forced-colors: active) {
   :root { --accent: Highlight; --selection-border: Highlight; --hover-border: ButtonText; }
+  #rename-save:enabled { color: HighlightText; }
 }

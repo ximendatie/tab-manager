@@ -16,11 +16,21 @@ const selectAll = document.querySelector("#select-all");
 const clearSelection = document.querySelector("#clear-selection");
 const closeSelected = document.querySelector("#close-selected");
 const status = document.querySelector("#status");
+const renameDialog = document.querySelector("#rename-dialog");
+const renameForm = document.querySelector("#rename-form");
+const renameDomain = document.querySelector("#rename-domain");
+const renameInput = document.querySelector("#rename-input");
+const renameError = document.querySelector("#rename-error");
+const renameCancel = document.querySelector("#rename-cancel");
+const renameSave = document.querySelector("#rename-save");
 const managerUrl = chrome.runtime.getURL("manager.html");
+const renameKeyPrefix = "domain-label:";
 
 const cards = new Map();
 const groups = new Map();
 let domainLabels = new Map();
+let renamedDomains = new Map();
+let renameKey;
 let closableIds = new Set();
 let selected = new Set();
 let manager;
@@ -97,6 +107,17 @@ async function loadDomainLabels() {
   return labels;
 }
 
+async function loadRenamedDomains() {
+  try {
+    const entries = Object.entries(await chrome.storage.local.get());
+    return new Map(entries
+      .filter(([key, label]) => key.startsWith(renameKeyPrefix) && typeof label === "string")
+      .map(([key, label]) => [key.slice(renameKeyPrefix.length), label]));
+  } catch {
+    return renamedDomains;
+  }
+}
+
 function getDomain(url) {
   let page;
   try {
@@ -159,7 +180,7 @@ function groupTabs(tabs, nativeGroupDetails) {
 
     const { key, isWebsite } = getDomain(tab.url || tab.pendingUrl);
     if (!domains.has(key)) {
-      const name = isWebsite ? domainLabels.get(key) ?? key : key;
+      const name = isWebsite ? (renamedDomains.get(key) ?? domainLabels.get(key)) || key : key;
       domains.set(key, { key, name, detail: key, isWebsite, entries: [] });
     }
     domains.get(key).entries.push(tab);
@@ -228,6 +249,49 @@ async function reloadGroup(key, name) {
   }
 }
 
+function openRenameDialog(key, name) {
+  renameKey = key;
+  renameDomain.textContent = key;
+  renameInput.value = name === key ? "" : name;
+  renameError.hidden = true;
+  renameDialog.showModal();
+  renameInput.select();
+}
+
+renameCancel.addEventListener("click", () => renameDialog.close());
+renameDialog.addEventListener("cancel", event => {
+  if (renameSave.disabled) event.preventDefault();
+});
+renameDialog.addEventListener("close", () => {
+  groups.get(renameKey)?.rename.focus({ preventScroll: true });
+  renameKey = undefined;
+});
+
+renameForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (renameSave.disabled || !renameKey) return;
+  const key = renameKey;
+  const label = renameInput.value.trim();
+  renameInput.readOnly = true;
+  renameCancel.disabled = true;
+  renameSave.disabled = true;
+  renameError.hidden = true;
+  try {
+    await chrome.storage.local.set({ [renameKeyPrefix + key]: label });
+    renameDialog.close();
+    setStatus(label ? `已保存简称「${label}」。` : "已恢复显示域名。");
+    queueRefresh();
+  } catch {
+    renameError.textContent = "暂时无法保存，请重试。";
+    renameError.hidden = false;
+  } finally {
+    renameInput.readOnly = false;
+    renameCancel.disabled = false;
+    renameSave.disabled = false;
+    if (renameDialog.open) renameInput.focus();
+  }
+});
+
 function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries }, windowLabels) {
   const group = domainTemplate.content.firstElementChild.cloneNode(true);
   if (color) {
@@ -261,6 +325,11 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
   reload.value = key;
   reload.setAttribute("aria-label", `整组刷新 ${name}`);
   reload.addEventListener("click", () => reloadGroup(key, name));
+  const rename = group.querySelector(".group-rename");
+  rename.hidden = !isWebsite;
+  rename.value = key;
+  rename.setAttribute("aria-label", `改名 ${name}`);
+  rename.addEventListener("click", () => openRenameDialog(key, name));
 
   const grid = group.querySelector(".domain-cards");
   let disclosure;
@@ -277,7 +346,7 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
     disclosure.addEventListener("click", () => setGroupsCollapsed([groups.get(key)], !grid.hidden));
   }
 
-  groups.set(key, { checkbox, disclosure, grid, reload, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
+  groups.set(key, { checkbox, disclosure, grid, reload, rename, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
   for (const tab of entries) {
     grid.append(createCard(tab, windowLabels?.get(tab.windowId) || ""));
   }
@@ -306,11 +375,12 @@ function renderTabs(tabs, nativeGroupDetails) {
 
   setSelection(selected);
   if (focused) {
-    const replacement = focused.matches(".group-check, .domain-disclosure, .group-reload")
+    const replacement = focused.matches(".group-check, .domain-disclosure, .group-reload, .group-rename")
       ? groups.get(focused.value)
       : cards.get(Number(focused.value));
     const control = focused.matches(".domain-disclosure") ? replacement?.disclosure
       : focused.matches(".group-reload") ? replacement?.reload
+      : focused.matches(".group-rename") ? replacement?.rename
       : focused.matches(".tab-jump") ? replacement?.jump : replacement?.checkbox;
     const hiddenGrid = control?.closest(".domain-cards[hidden]");
     const next = hiddenGrid ? hiddenGrid.parentElement.querySelector(".domain-disclosure") : control;
@@ -337,8 +407,9 @@ function updateActions() {
   const groupActionsDisabled = closing || syncingGroups || reloadingGroup !== undefined;
   let hasExpanded = false;
   let hasCollapsed = false;
-  for (const [key, { checkbox, ids, disclosure, grid, reload }] of groups) {
+  for (const [key, { checkbox, ids, disclosure, grid, reload, rename }] of groups) {
     reload.setAttribute("aria-disabled", String(groupActionsDisabled));
+    rename.disabled = groupActionsDisabled;
     const reloadLabel = key === reloadingGroup ? "刷新中" : "刷新";
     if (reload.textContent !== reloadLabel) reload.textContent = reloadLabel;
     const eligible = ids.filter(id => closableIds.has(id));
@@ -373,12 +444,13 @@ async function refreshTabs() {
   refreshNeeded = false;
   refreshing = true;
   try {
-    const tabs = await getTabs();
+    const [tabs, names] = await Promise.all([getTabs(), loadRenamedDomains()]);
     const nativeGroupDetails = await getNativeGroupDetails(tabs);
     if (closing || syncingGroups || gesture) {
       refreshNeeded = true;
       return;
     }
+    renamedDomains = names;
     renderTabs(tabs, nativeGroupDetails);
   } catch {
     if (board.hidden) emptyMessage.textContent = "暂时无法读取标签页，请刷新此页重试。";
@@ -446,7 +518,7 @@ window.addEventListener("pointerdown", () => { suppressClick = false; }, true);
 
 board.addEventListener("pointerdown", event => {
   if (closing || event.button !== 0 || event.pointerType !== "mouse"
-    || event.target.closest(".domain-select, .domain-disclosure, .group-reload, .tab-jump")) return;
+    || event.target.closest(".domain-select, .domain-disclosure, .group-reload, .group-rename, .tab-jump")) return;
   gesture = {
     pointerId: event.pointerId,
     startX: event.pageX,
@@ -540,7 +612,7 @@ const usesMacDelete = /^mac/i.test(navigator.userAgentData?.platform || navigato
 if (usesMacDelete) closeSelected.setAttribute("aria-keyshortcuts", "Delete Backspace");
 
 window.addEventListener("keydown", event => {
-  if (closing || event.defaultPrevented || event.isComposing || event.repeat
+  if (renameDialog.open || closing || event.defaultPrevented || event.isComposing || event.repeat
     || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
   const target = event.target;
@@ -636,6 +708,9 @@ async function initialize() {
         || "groupId" in change || "favIconUrl" in change)) {
         queueRefresh();
       }
+    });
+    chrome.storage?.local.onChanged.addListener(changes => {
+      if (Object.keys(changes).some(key => key.startsWith(renameKeyPrefix))) queueRefresh();
     });
     window.addEventListener("focus", queueRefresh);
     await refreshTabs();
