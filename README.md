@@ -1,6 +1,6 @@
 # Tab Manager · 标签页清理
 
-**[直接下载 v2.4.0 ZIP][release-zip]** · [安装步骤（Chrome / Ego Lite）](#安装)
+**[直接下载 v2.4.1 ZIP][release-zip]** · [安装步骤（Chrome / Ego Lite）](#安装)
 
 浏览器开了好几个窗口，临时查资料的标签页散得到处都是。逐个翻找再关，既慢又容易关掉还要用的页面。Tab Manager 把各窗口的标签页铺在同一个面板里，优先沿用浏览器已有的标签页分组，其余按域名归类。你可以选好一批一起关，已固定的标签页会保留。
 
@@ -22,7 +22,7 @@
 
 ## 安装
 
-1. [下载 v2.4.0 ZIP][release-zip] 并解压。
+1. [下载 v2.4.1 ZIP][release-zip] 并解压。
 2. 在 Chrome 或 Ego Lite 的地址栏打开 `chrome://extensions`，开启右上角的「开发者模式」。
 3. 点击「加载未打包的扩展程序」，选择解压后包含 `manifest.json` 的 `tab-manager` 文件夹。
 4. 从浏览器工具栏的扩展程序菜单打开「标签页清理」。常用的话，可以点击菜单里的图钉把它固定在工具栏。
@@ -45,7 +45,7 @@
 
 保存后刷新管理页。简称只用在按域名归类的组，悬停组名可以查看原域名。配置缺失、格式有误或某个域名未配置时，页面显示原域名。
 
-扩展在本地处理标签页标题、地址和域名简称。配置文件已加入 `.gitignore`，发布包仅提供扩展及使用说明。
+扩展在本地处理标签页标题、地址和域名简称。配置文件已加入 `.gitignore`，安装说明见本页及 GitHub Release。
 
 ## 常见问题
 
@@ -83,4 +83,4 @@ Download and unzip the extension from GitHub Releases. Open `chrome://extensions
 
 The extension processes tab titles and URLs locally. Custom group labels are read from a local configuration file. If none is configured, groups display their domain names.
 
-[release-zip]: https://github.com/ximendatie/tab-manager/releases/download/v2.4.0/tab-manager-v2.4.0.zip
+[release-zip]: https://github.com/ximendatie/tab-manager/releases/download/v2.4.1/tab-manager-v2.4.1.zip
