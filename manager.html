@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light dark">
+    <meta name="color-scheme" content="only light">
     <title>标签页清理</title>
     <link rel="stylesheet" href="manager.css">
     <script type="module" src="manager.js"></script>
@@ -15,15 +15,18 @@
           <img src="icons/window-cleanup-48.png" class="app-icon" width="36" height="36" alt="">
           <div>
             <h1>标签页清理</h1>
-            <p>点击勾选或拖动框选 · <kbd>Delete</kbd> 关闭所选 · <kbd>Esc</kbd> 取消选择</p>
+            <div class="page-summary">
+              <span id="tab-count"></span>
+              <span id="protected-count" class="protection-count" hidden></span>
+            </div>
           </div>
         </div>
         <div class="actions" role="group" aria-label="批量操作">
           <div class="selection-actions">
             <button id="select-all" type="button" disabled>全选</button>
-            <button id="clear-selection" type="button" aria-keyshortcuts="Escape" disabled>取消选择</button>
+            <button id="clear-selection" type="button" aria-keyshortcuts="Escape" title="取消选择（Esc）" disabled>取消选择</button>
           </div>
-          <button id="close-selected" class="close-button" type="button" aria-keyshortcuts="Delete" disabled>关闭所选</button>
+          <button id="close-selected" class="close-button" type="button" aria-keyshortcuts="Delete" title="关闭所选（Delete）" disabled>关闭所选</button>
         </div>
       </div>
     </header>
@@ -32,8 +35,7 @@
       <div class="board-header">
         <div class="board-summary">
           <h2 id="board-title" tabindex="-1">标签页分类</h2>
-          <span id="tab-count"></span>
-          <span id="protected-count" class="protection-count" hidden></span>
+          <p>点击卡片勾选，或拖动框选</p>
         </div>
         <div id="group-view-actions" class="selection-actions" role="group" aria-label="Chrome 分组展开状态" hidden>
           <button id="expand-all-groups" type="button" aria-disabled="true">全部展开</button>
@@ -46,21 +48,6 @@
     </main>
     <div id="selection-box" class="selection-box" aria-hidden="true" hidden></div>
 
-    <dialog id="rename-dialog" aria-labelledby="rename-title" aria-describedby="rename-domain">
-      <form id="rename-form">
-        <h2 id="rename-title">修改域名分组名称</h2>
-        <p id="rename-domain"></p>
-        <label for="rename-input">简称</label>
-        <input id="rename-input" type="text" autocomplete="off" aria-describedby="rename-hint" autofocus>
-        <p id="rename-hint">仅保存在当前浏览器。留空则显示域名。</p>
-        <p id="rename-error" role="alert" hidden></p>
-        <div class="rename-actions">
-          <button id="rename-cancel" type="button">取消</button>
-          <button id="rename-save" type="submit">保存</button>
-        </div>
-      </form>
-    </dialog>
-
     <template id="domain-template">
       <section class="domain-group">
         <div class="domain-header">
@@ -71,12 +58,11 @@
             <span class="domain-count"></span>
           </div>
           <div class="domain-actions">
-            <label class="domain-select">
+            <label class="domain-select" title="整组选中">
               <input class="group-check" type="checkbox">
-              整组
+              <span>整组</span>
             </label>
-            <button class="group-reload" type="button">刷新</button>
-            <button class="group-rename" type="button" hidden>改名</button>
+            <button class="group-reload" type="button" title="刷新此分组">刷新</button>
           </div>
         </div>
         <div class="domain-cards"></div>
@@ -87,6 +73,7 @@
       <div class="tab-card">
         <button class="tab-jump" type="button" title="切换到此标签页">
           <span class="jump-icon" aria-hidden="true"></span>
+          <img class="tab-favicon" width="16" height="16" alt="" hidden>
         </button>
         <label class="tab-selection">
           <span class="card-content">

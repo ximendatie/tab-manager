@@ -16,21 +16,11 @@ const selectAll = document.querySelector("#select-all");
 const clearSelection = document.querySelector("#clear-selection");
 const closeSelected = document.querySelector("#close-selected");
 const status = document.querySelector("#status");
-const renameDialog = document.querySelector("#rename-dialog");
-const renameForm = document.querySelector("#rename-form");
-const renameDomain = document.querySelector("#rename-domain");
-const renameInput = document.querySelector("#rename-input");
-const renameError = document.querySelector("#rename-error");
-const renameCancel = document.querySelector("#rename-cancel");
-const renameSave = document.querySelector("#rename-save");
 const managerUrl = chrome.runtime.getURL("manager.html");
-const renameKeyPrefix = "domain-label:";
 
 const cards = new Map();
 const groups = new Map();
-let domainLabels = new Map();
-let renamedDomains = new Map();
-let renameKey;
+let domainSettings = new Map();
 let closableIds = new Set();
 let selected = new Set();
 let manager;
@@ -86,8 +76,8 @@ function normalizeHostname(hostname) {
   return normalized.replace(/^www\./, "") || normalized;
 }
 
-async function loadDomainLabels() {
-  const labels = new Map();
+async function loadDomainSettings() {
+  const settings = new Map();
   try {
     const directory = await chrome.runtime.getPackageDirectoryEntry();
     const entry = await new Promise((resolve, reject) => {
@@ -95,27 +85,22 @@ async function loadDomainLabels() {
     });
     const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
     const config = JSON.parse(await file.text());
-    if (!config || typeof config !== "object" || Array.isArray(config)) return labels;
+    if (!config || typeof config !== "object" || Array.isArray(config)) return settings;
 
-    for (const [hostname, label] of Object.entries(config)) {
+    for (const [hostname, value] of Object.entries(config)) {
       const key = normalizeHostname(hostname);
-      if (key && typeof label === "string" && label.trim()) labels.set(key, label.trim());
+      if (!key) continue;
+      if (typeof value === "string" && value.trim()) {
+        settings.set(key, { label: value.trim() });
+      } else if (typeof value?.groupWith === "string") {
+        const groupWith = normalizeHostname(value.groupWith);
+        if (groupWith) settings.set(key, { groupWith });
+      }
     }
   } catch {
     // The optional file may be missing or invalid.
   }
-  return labels;
-}
-
-async function loadRenamedDomains() {
-  try {
-    const entries = Object.entries(await chrome.storage.local.get());
-    return new Map(entries
-      .filter(([key, label]) => key.startsWith(renameKeyPrefix) && typeof label === "string")
-      .map(([key, label]) => [key.slice(renameKeyPrefix.length), label]));
-  } catch {
-    return renamedDomains;
-  }
+  return settings;
 }
 
 function getDomain(url) {
@@ -149,6 +134,19 @@ function createCard(tab, windowLabel) {
   jump.setAttribute("aria-label", `切换到标签页：${title}`);
   card.title = title;
   card.querySelector(".tab-title").textContent = title;
+  if (tab.url && tab.favIconUrl) {
+    const icon = jump.querySelector(".tab-favicon");
+    icon.addEventListener("load", () => { icon.hidden = false; }, { once: true });
+    if (tab.favIconUrl.startsWith("data:image/")) {
+      icon.src = tab.favIconUrl;
+    } else {
+      const favicon = new URL(chrome.runtime.getURL("/_favicon/"));
+      favicon.searchParams.set("pageUrl", tab.url);
+      favicon.searchParams.set("size", "32");
+      favicon.searchParams.set("v", tab.favIconUrl);
+      icon.src = favicon.href;
+    }
+  }
   const contextLabel = card.querySelector(".tab-context");
   contextLabel.textContent = context;
   contextLabel.hidden = !context;
@@ -178,9 +176,10 @@ function groupTabs(tabs, nativeGroupDetails) {
       continue;
     }
 
-    const { key, isWebsite } = getDomain(tab.url || tab.pendingUrl);
+    const { key: hostname, isWebsite } = getDomain(tab.url || tab.pendingUrl);
+    const key = isWebsite ? domainSettings.get(hostname)?.groupWith ?? hostname : hostname;
     if (!domains.has(key)) {
-      const name = isWebsite ? (renamedDomains.get(key) ?? domainLabels.get(key)) || key : key;
+      const name = isWebsite ? domainSettings.get(key)?.label ?? key : key;
       domains.set(key, { key, name, detail: key, isWebsite, entries: [] });
     }
     domains.get(key).entries.push(tab);
@@ -249,66 +248,41 @@ async function reloadGroup(key, name) {
   }
 }
 
-function openRenameDialog(key, name) {
-  renameKey = key;
-  renameDomain.textContent = key;
-  renameInput.value = name === key ? "" : name;
-  renameError.hidden = true;
-  renameDialog.showModal();
-  renameInput.select();
-}
-
-renameCancel.addEventListener("click", () => renameDialog.close());
-renameDialog.addEventListener("cancel", event => {
-  if (renameSave.disabled) event.preventDefault();
-});
-renameDialog.addEventListener("close", () => {
-  groups.get(renameKey)?.rename.focus({ preventScroll: true });
-  renameKey = undefined;
-});
-
-renameForm.addEventListener("submit", async event => {
-  event.preventDefault();
-  if (renameSave.disabled || !renameKey) return;
-  const key = renameKey;
-  const label = renameInput.value.trim();
-  renameInput.readOnly = true;
-  renameCancel.disabled = true;
-  renameSave.disabled = true;
-  renameError.hidden = true;
-  try {
-    await chrome.storage.local.set({ [renameKeyPrefix + key]: label });
-    renameDialog.close();
-    setStatus(label ? `已保存简称「${label}」。` : "已恢复显示域名。");
-    queueRefresh();
-  } catch {
-    renameError.textContent = "暂时无法保存，请重试。";
-    renameError.hidden = false;
-  } finally {
-    renameInput.readOnly = false;
-    renameCancel.disabled = false;
-    renameSave.disabled = false;
-    if (renameDialog.open) renameInput.focus();
+function getGroupFaviconUrl(entries, hostname) {
+  const matching = entries.filter(tab => getDomain(tab.url || tab.pendingUrl).key === hostname);
+  const siteTabs = matching.length ? matching : entries;
+  const candidates = new Map();
+  for (const tab of siteTabs) {
+    // Inline document icons belong to individual tabs.
+    if (!tab.url || !/^https?:\/\//i.test(tab.favIconUrl ?? "")) continue;
+    const candidate = candidates.get(tab.favIconUrl);
+    if (candidate) candidate.count += 1;
+    else candidates.set(tab.favIconUrl, { tab, count: 1 });
   }
-});
+
+  const [first, second] = [...candidates.values()].sort((a, b) => b.count - a.count);
+  const representative = first && first.count > (second?.count ?? 0) ? first.tab : undefined;
+  const site = new URL("/", siteTabs[0].url || siteTabs[0].pendingUrl);
+  const favicon = new URL(chrome.runtime.getURL("/_favicon/"));
+  favicon.searchParams.set("pageUrl", representative?.url ?? site.href);
+  favicon.searchParams.set("size", "32");
+  if (representative) favicon.searchParams.set("v", representative.favIconUrl);
+  return favicon.href;
+}
 
 function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries }, windowLabels) {
   const group = domainTemplate.content.firstElementChild.cloneNode(true);
+  group.style.setProperty("--group-size", entries.length);
+  group.toggleAttribute("data-full-width", entries.length > 3);
   if (color) {
     const marker = group.querySelector(".domain-color");
     marker.dataset.color = color;
     marker.hidden = false;
   }
   if (isWebsite) {
-    const representative = entries.find(tab => tab.url && tab.favIconUrl) ?? entries[0];
-    const favicon = new URL(chrome.runtime.getURL("/_favicon/"));
-    favicon.searchParams.set("pageUrl", representative.url || representative.pendingUrl);
-    favicon.searchParams.set("size", "32");
-    // Give a new favicon on the same page a different image cache key.
-    if (representative.favIconUrl) favicon.searchParams.set("v", representative.favIconUrl);
     const icon = group.querySelector(".domain-favicon");
     icon.addEventListener("load", () => { icon.hidden = false; }, { once: true });
-    icon.src = favicon.href;
+    icon.src = getGroupFaviconUrl(entries, key);
   }
   const heading = group.querySelector(".domain-name");
   const checkbox = group.querySelector(".group-check");
@@ -317,7 +291,6 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
   heading.textContent = name;
   heading.title = detail;
   group.setAttribute("aria-label", name);
-  group.style.setProperty("--group-size", entries.length);
   group.querySelector(".domain-count").textContent = `${entries.length} 个`;
   checkbox.value = key;
   checkbox.setAttribute("aria-label", `整组选中 ${name}`);
@@ -325,11 +298,6 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
   reload.value = key;
   reload.setAttribute("aria-label", `整组刷新 ${name}`);
   reload.addEventListener("click", () => reloadGroup(key, name));
-  const rename = group.querySelector(".group-rename");
-  rename.hidden = !isWebsite;
-  rename.value = key;
-  rename.setAttribute("aria-label", `改名 ${name}`);
-  rename.addEventListener("click", () => openRenameDialog(key, name));
 
   const grid = group.querySelector(".domain-cards");
   let disclosure;
@@ -346,9 +314,9 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
     disclosure.addEventListener("click", () => setGroupsCollapsed([groups.get(key)], !grid.hidden));
   }
 
-  groups.set(key, { checkbox, disclosure, grid, reload, rename, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
+  groups.set(key, { checkbox, disclosure, grid, reload, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
   for (const tab of entries) {
-    grid.append(createCard(tab, windowLabels?.get(tab.windowId) || ""));
+    grid.append(createCard(tab, windowLabels.get(tab.windowId)));
   }
   return group;
 }
@@ -359,13 +327,15 @@ function renderTabs(tabs, nativeGroupDetails) {
   const windowIds = [...new Set(tabs.map(tab => tab.windowId))];
   const otherWindowIds = windowIds.filter(id => id !== manager.windowId);
   const windowLabels = new Map(otherWindowIds.map((id, index) => [id, `窗口 ${index + 1}`]));
-  windowLabels.set(manager.windowId, "当前窗口");
 
   cards.clear();
   groups.clear();
   const content = document.createDocumentFragment();
-  for (const group of groupTabs(tabs, nativeGroupDetails)) {
-    content.append(createGroup(group, windowIds.length > 1 ? windowLabels : undefined));
+  for (const [index, group] of groupTabs(tabs, nativeGroupDetails).entries()) {
+    const section = createGroup(group, windowLabels);
+    // Rotate the hue far enough to separate neighboring groups.
+    section.style.setProperty("--group-hue", (225 + index * 137.508) % 360);
+    content.append(section);
   }
   board.replaceChildren(content);
   board.hidden = tabs.length === 0;
@@ -375,12 +345,11 @@ function renderTabs(tabs, nativeGroupDetails) {
 
   setSelection(selected);
   if (focused) {
-    const replacement = focused.matches(".group-check, .domain-disclosure, .group-reload, .group-rename")
+    const replacement = focused.matches(".group-check, .domain-disclosure, .group-reload")
       ? groups.get(focused.value)
       : cards.get(Number(focused.value));
     const control = focused.matches(".domain-disclosure") ? replacement?.disclosure
       : focused.matches(".group-reload") ? replacement?.reload
-      : focused.matches(".group-rename") ? replacement?.rename
       : focused.matches(".tab-jump") ? replacement?.jump : replacement?.checkbox;
     const hiddenGrid = control?.closest(".domain-cards[hidden]");
     const next = hiddenGrid ? hiddenGrid.parentElement.querySelector(".domain-disclosure") : control;
@@ -407,10 +376,11 @@ function updateActions() {
   const groupActionsDisabled = closing || syncingGroups || reloadingGroup !== undefined;
   let hasExpanded = false;
   let hasCollapsed = false;
-  for (const [key, { checkbox, ids, disclosure, grid, reload, rename }] of groups) {
+  for (const [key, { checkbox, ids, disclosure, grid, reload }] of groups) {
     reload.setAttribute("aria-disabled", String(groupActionsDisabled));
-    rename.disabled = groupActionsDisabled;
-    const reloadLabel = key === reloadingGroup ? "刷新中" : "刷新";
+    const isReloading = key === reloadingGroup;
+    reload.setAttribute("aria-busy", String(isReloading));
+    const reloadLabel = isReloading ? "刷新中" : "刷新";
     if (reload.textContent !== reloadLabel) reload.textContent = reloadLabel;
     const eligible = ids.filter(id => closableIds.has(id));
     const count = eligible.reduce((total, id) => total + Number(selected.has(id)), 0);
@@ -444,13 +414,12 @@ async function refreshTabs() {
   refreshNeeded = false;
   refreshing = true;
   try {
-    const [tabs, names] = await Promise.all([getTabs(), loadRenamedDomains()]);
+    const tabs = await getTabs();
     const nativeGroupDetails = await getNativeGroupDetails(tabs);
     if (closing || syncingGroups || gesture) {
       refreshNeeded = true;
       return;
     }
-    renamedDomains = names;
     renderTabs(tabs, nativeGroupDetails);
   } catch {
     if (board.hidden) emptyMessage.textContent = "暂时无法读取标签页，请刷新此页重试。";
@@ -510,15 +479,16 @@ function endGesture(cancelled) {
   if (frameId) cancelAnimationFrame(frameId);
   frameId = undefined;
   selectionBox.hidden = true;
-  board.classList.remove("dragging");
+  document.body.classList.remove("dragging");
   if (refreshNeeded) queueRefresh();
 }
 
-window.addEventListener("pointerdown", () => { suppressClick = false; }, true);
-
-board.addEventListener("pointerdown", event => {
-  if (closing || event.button !== 0 || event.pointerType !== "mouse"
-    || event.target.closest(".domain-select, .domain-disclosure, .group-reload, .group-rename, .tab-jump")) return;
+window.addEventListener("pointerdown", event => {
+  suppressClick = false;
+  if (closing || board.hidden || event.button !== 0 || event.pointerType !== "mouse"
+    || !(event.target instanceof Element)
+    || event.target.closest(".page-header, .domain-select, .domain-disclosure, .group-reload, .tab-jump")
+    || event.clientY < board.getBoundingClientRect().top) return;
   gesture = {
     pointerId: event.pointerId,
     startX: event.pageX,
@@ -528,7 +498,7 @@ board.addEventListener("pointerdown", event => {
     initialSelection: new Set(selected),
     active: false,
   };
-});
+}, true);
 
 window.addEventListener("pointermove", event => {
   if (gesture?.pointerId !== event.pointerId) return;
@@ -536,8 +506,7 @@ window.addEventListener("pointermove", event => {
     if (Math.hypot(event.pageX - gesture.startX, event.pageY - gesture.startY) < 5) return;
     gesture.active = true;
     board.setPointerCapture(event.pointerId);
-    board.classList.add("dragging");
-    setStatus("");
+    document.body.classList.add("dragging");
   }
   gesture.clientX = event.clientX;
   gesture.clientY = event.clientY;
@@ -551,6 +520,7 @@ window.addEventListener("pointerup", event => {
     gesture.clientY = event.clientY;
     paintSelection(false);
     suppressClick = true;
+    setStatus("");
   }
   endGesture(false);
 });
@@ -612,7 +582,7 @@ const usesMacDelete = /^mac/i.test(navigator.userAgentData?.platform || navigato
 if (usesMacDelete) closeSelected.setAttribute("aria-keyshortcuts", "Delete Backspace");
 
 window.addEventListener("keydown", event => {
-  if (renameDialog.open || closing || event.defaultPrevented || event.isComposing || event.repeat
+  if (closing || event.defaultPrevented || event.isComposing || event.repeat
     || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
   const target = event.target;
@@ -695,7 +665,7 @@ closeSelected.addEventListener("click", async event => {
 
 async function initialize() {
   try {
-    [manager, domainLabels] = await Promise.all([chrome.tabs.getCurrent(), loadDomainLabels()]);
+    [manager, domainSettings] = await Promise.all([chrome.tabs.getCurrent(), loadDomainSettings()]);
     if (!manager) throw new Error("Missing tab for manager");
     for (const event of [chrome.tabs.onCreated, chrome.tabs.onRemoved, chrome.tabs.onMoved,
       chrome.tabs.onAttached, chrome.tabs.onReplaced, chrome.tabGroups?.onCreated,
@@ -708,9 +678,6 @@ async function initialize() {
         || "groupId" in change || "favIconUrl" in change)) {
         queueRefresh();
       }
-    });
-    chrome.storage?.local.onChanged.addListener(changes => {
-      if (Object.keys(changes).some(key => key.startsWith(renameKeyPrefix))) queueRefresh();
     });
     window.addEventListener("focus", queueRefresh);
     await refreshTabs();

@@ -2,8 +2,12 @@
   "manifest_version": 3,
   "name": "标签页清理",
   "description": "优先沿用 Chrome 标签页分组，支持整组选中、勾选和拖拽框选后批量关闭。",
-  "version": "2.4.3",
-  "permissions": ["tabs", "tabGroups", "favicon", "storage"],
+  "version": "2.4.4",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "favicon"
+  ],
   "incognito": "not_allowed",
   "background": {
     "service_worker": "background.js",
