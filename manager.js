@@ -15,6 +15,7 @@ const emptyMessage = document.querySelector("#empty-message");
 const selectAll = document.querySelector("#select-all");
 const clearSelection = document.querySelector("#clear-selection");
 const closeSelected = document.querySelector("#close-selected");
+const undoClose = document.querySelector("#undo-close");
 const status = document.querySelector("#status");
 const managerUrl = chrome.runtime.getURL("manager.html");
 
@@ -24,7 +25,8 @@ let domainSettings = new Map();
 let closableIds = new Set();
 let selected = new Set();
 let manager;
-let closing = false;
+let tabAction;
+let closedBatch = [];
 let syncingGroups = false;
 let reloadingGroup;
 let refreshing = false;
@@ -92,9 +94,11 @@ async function loadDomainSettings() {
       if (!key) continue;
       if (typeof value === "string" && value.trim()) {
         settings.set(key, { label: value.trim() });
-      } else if (typeof value?.groupWith === "string") {
-        const groupWith = normalizeHostname(value.groupWith);
-        if (groupWith) settings.set(key, { groupWith });
+      } else if (value && typeof value === "object" && !Array.isArray(value)) {
+        const label = typeof value.label === "string" ? value.label.trim() : "";
+        const groupWith = typeof value.groupWith === "string" ? normalizeHostname(value.groupWith) : "";
+        const titleSuffix = typeof value.titleSuffix === "string" ? value.titleSuffix.trim() : "";
+        settings.set(key, { label: label || undefined, groupWith: groupWith || undefined, titleSuffix });
       }
     }
   } catch {
@@ -117,20 +121,23 @@ function getDomain(url) {
   return { key: names[page.protocol] ?? "其他页面", isWebsite: false };
 }
 
-function createCard(tab, windowLabel) {
+function createCard(tab, windowLabel, titleSuffix) {
   const card = template.content.firstElementChild.cloneNode(true);
   const checkbox = card.querySelector(".tab-check");
   const label = card.querySelector(".tab-selection");
   const jump = card.querySelector(".tab-jump");
-  const title = tab.title?.trim() || "未命名标签页";
+  const originalTitle = tab.title?.trim() || "未命名标签页";
+  const title = titleSuffix && originalTitle.endsWith(titleSuffix)
+    ? originalTitle.slice(0, -titleSuffix.length).trimEnd() || originalTitle
+    : originalTitle;
   const context = [tab.pinned ? "已固定 · 受保护" : "", windowLabel].filter(Boolean).join(" · ");
   checkbox.id = `tab-check-${tab.id}`;
   label.htmlFor = checkbox.id;
   checkbox.value = tab.id;
   checkbox.checked = closableIds.has(tab.id) && selected.has(tab.id);
-  checkbox.disabled = closing || !closableIds.has(tab.id);
+  checkbox.disabled = tabAction || !closableIds.has(tab.id);
   jump.value = tab.id;
-  jump.disabled = closing;
+  jump.disabled = Boolean(tabAction);
   jump.setAttribute("aria-label", `切换到标签页：${title}`);
   card.title = title;
   card.querySelector(".tab-title").textContent = title;
@@ -197,7 +204,7 @@ function setGroupCollapsed(grid, disclosure, collapsed) {
 }
 
 async function setGroupsCollapsed(targets, collapsed, batch = false) {
-  if (closing || syncingGroups || reloadingGroup || targets.length === 0) return;
+  if (tabAction || syncingGroups || reloadingGroup || targets.length === 0) return;
   syncingGroups = true;
   updateActions();
   setStatus("");
@@ -224,7 +231,7 @@ async function setGroupsCollapsed(targets, collapsed, batch = false) {
 }
 
 async function reloadGroup(key, name) {
-  if (closing || syncingGroups || reloadingGroup) return;
+  if (tabAction || syncingGroups || reloadingGroup) return;
   reloadingGroup = key;
   updateActions();
   setStatus(`正在刷新「${name}」…`);
@@ -315,8 +322,9 @@ function createGroup({ key, name, detail, color, isWebsite, nativeGroup, entries
   }
 
   groups.set(key, { checkbox, disclosure, grid, reload, nativeGroupId: nativeGroup?.id, ids: entries.map(tab => tab.id) });
+  const titleSuffix = isWebsite ? domainSettings.get(key)?.titleSuffix : undefined;
   for (const tab of entries) {
-    grid.append(createCard(tab, windowLabels.get(tab.windowId)));
+    grid.append(createCard(tab, windowLabels.get(tab.windowId), titleSuffix));
   }
   return group;
 }
@@ -363,7 +371,7 @@ function setSelection(next) {
     const checked = selected.has(id);
     const isProtected = !closableIds.has(id);
     if (checkbox.checked !== checked) checkbox.checked = checked;
-    checkbox.disabled = closing || isProtected;
+    checkbox.disabled = tabAction || isProtected;
     card.toggleAttribute("data-protected", isProtected);
   }
   updateActions();
@@ -373,7 +381,7 @@ function updateActions() {
   const protectedTabs = cards.size - closableIds.size;
   protectedCount.hidden = protectedTabs === 0;
   protectedCount.textContent = `${protectedTabs} 个受保护`;
-  const groupActionsDisabled = closing || syncingGroups || reloadingGroup !== undefined;
+  const groupActionsDisabled = Boolean(tabAction) || syncingGroups || reloadingGroup !== undefined;
   let hasExpanded = false;
   let hasCollapsed = false;
   for (const [key, { checkbox, ids, disclosure, grid, reload }] of groups) {
@@ -386,7 +394,7 @@ function updateActions() {
     const count = eligible.reduce((total, id) => total + Number(selected.has(id)), 0);
     checkbox.checked = count > 0 && count === eligible.length;
     checkbox.indeterminate = count > 0 && count < eligible.length;
-    checkbox.disabled = closing || eligible.length === 0;
+    checkbox.disabled = tabAction || eligible.length === 0;
     if (disclosure) {
       disclosure.setAttribute("aria-disabled", String(groupActionsDisabled));
       hasExpanded ||= !grid.hidden;
@@ -396,27 +404,29 @@ function updateActions() {
   groupViewActions.hidden = !hasExpanded && !hasCollapsed;
   expandAllGroups.setAttribute("aria-disabled", String(groupActionsDisabled || !hasCollapsed));
   collapseAllGroups.setAttribute("aria-disabled", String(groupActionsDisabled || !hasExpanded));
-  selectAll.disabled = closing || closableIds.size === selected.size;
-  clearSelection.disabled = closing || selected.size === 0;
+  selectAll.disabled = tabAction || closableIds.size === selected.size;
+  clearSelection.disabled = tabAction || selected.size === 0;
   closeSelected.disabled = groupActionsDisabled || selected.size === 0;
+  undoClose.disabled = groupActionsDisabled || closedBatch.length === 0;
+  undoClose.textContent = tabAction === "restoring" ? "正在恢复…" : "撤销关闭";
   const label = selected.size ? `关闭所选 ${selected.size} 个标签页` : "关闭所选";
-  closeSelected.textContent = closing ? "正在关闭…" : label;
+  closeSelected.textContent = tabAction === "closing" ? "正在关闭…" : label;
 }
 
 function queueRefresh() {
   refreshNeeded = true;
   clearTimeout(refreshTimer);
-  if (!closing && !syncingGroups && !gesture && !refreshing) refreshTimer = setTimeout(refreshTabs, 100);
+  if (!tabAction && !syncingGroups && !gesture && !refreshing) refreshTimer = setTimeout(refreshTabs, 100);
 }
 
 async function refreshTabs() {
-  if (closing || syncingGroups || gesture || refreshing) return;
+  if (tabAction || syncingGroups || gesture || refreshing) return;
   refreshNeeded = false;
   refreshing = true;
   try {
     const tabs = await getTabs();
     const nativeGroupDetails = await getNativeGroupDetails(tabs);
-    if (closing || syncingGroups || gesture) {
+    if (tabAction || syncingGroups || gesture) {
       refreshNeeded = true;
       return;
     }
@@ -485,7 +495,7 @@ function endGesture(cancelled) {
 
 window.addEventListener("pointerdown", event => {
   suppressClick = false;
-  if (closing || board.hidden || event.button !== 0 || event.pointerType !== "mouse"
+  if (tabAction || board.hidden || event.button !== 0 || event.pointerType !== "mouse"
     || !(event.target instanceof Element)
     || event.target.closest(".page-header, .domain-select, .domain-disclosure, .group-reload, .tab-jump")
     || event.clientY < board.getBoundingClientRect().top) return;
@@ -539,7 +549,7 @@ board.addEventListener("click", event => {
 
 board.addEventListener("click", async event => {
   const jump = event.target.closest(".tab-jump");
-  if (!jump || closing) return;
+  if (!jump || tabAction) return;
   try {
     await focusTab(Number(jump.value));
   } catch {
@@ -578,16 +588,28 @@ for (const [button, collapsed] of [[expandAllGroups, false], [collapseAllGroups,
   });
 }
 
-const usesMacDelete = /^mac/i.test(navigator.userAgentData?.platform || navigator.platform);
-if (usesMacDelete) closeSelected.setAttribute("aria-keyshortcuts", "Delete Backspace");
+const usesMacShortcuts = /^mac/i.test(navigator.userAgentData?.platform || navigator.platform);
+if (usesMacShortcuts) {
+  closeSelected.setAttribute("aria-keyshortcuts", "Delete Backspace");
+  undoClose.setAttribute("aria-keyshortcuts", "Meta+Z");
+  document.querySelector("#undo-shortcut").textContent = "⌘Z";
+}
 
 window.addEventListener("keydown", event => {
-  if (closing || event.defaultPrevented || event.isComposing || event.repeat
-    || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (tabAction || event.defaultPrevented || event.isComposing || event.repeat
+    || event.altKey || event.shiftKey) return;
 
   const target = event.target;
   if (target instanceof HTMLElement && (target.isContentEditable
     || target.matches("textarea, select, input:not([type=checkbox]):not([type=radio])"))) return;
+
+  const undoModifier = usesMacShortcuts ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  if (undoModifier && event.key.toLowerCase() === "z" && !gesture && !undoClose.disabled) {
+    event.preventDefault();
+    undoClose.click();
+    return;
+  }
+  if (event.ctrlKey || event.metaKey) return;
 
   if (event.key === "Escape" && (gesture || !clearSelection.disabled)) {
     event.preventDefault();
@@ -598,7 +620,7 @@ window.addEventListener("keydown", event => {
     clearSelection.click();
   }
 
-  const isDelete = event.key === "Delete" || (usesMacDelete && event.key === "Backspace");
+  const isDelete = event.key === "Delete" || (usesMacShortcuts && event.key === "Backspace");
   if (isDelete && !gesture && !closeSelected.disabled) {
     event.preventDefault();
     closeSelected.click();
@@ -607,59 +629,113 @@ window.addEventListener("keydown", event => {
 
 async function requestClosures(ids) {
   const protectedIds = new Set();
-  const removals = new Map();
+  const removals = [];
   await Promise.allSettled(ids.map(async id => {
     const tab = await chrome.tabs.get(id);
     if (tab.pinned !== false || !closableIds.has(id)) {
       protectedIds.add(id);
       return;
     }
-    removals.set(id, chrome.tabs.remove(id).catch(() => {}));
+    removals.push({ tab, pending: chrome.tabs.remove(id).catch(() => {}) });
   }));
 
   let timeout;
   try {
     await Promise.race([
-      Promise.all(removals.values()),
+      Promise.all(removals.map(({ pending }) => pending)),
       new Promise(resolve => { timeout = setTimeout(resolve, 1500); }),
     ]);
   } finally {
     clearTimeout(timeout);
   }
-  return { attemptedIds: [...removals.keys()], protectedIds };
+  return { attemptedTabs: removals.map(({ tab }) => tab), protectedIds };
 }
 
 closeSelected.addEventListener("click", async event => {
-  if (closing || syncingGroups || reloadingGroup || selected.size === 0) return;
+  if (tabAction || syncingGroups || reloadingGroup || selected.size === 0) return;
   const restoreKeyboardFocus = event.detail === 0;
-  closing = true;
+  tabAction = "closing";
   setStatus("");
   setSelection(selected);
   for (const { jump } of cards.values()) jump.disabled = true;
 
   const ids = [...selected];
   try {
-    const { attemptedIds, protectedIds } = await requestClosures(ids);
+    const { attemptedTabs, protectedIds } = await requestClosures(ids);
     const tabs = await getTabs();
     const openIds = new Set(tabs.map(tab => tab.id));
-    const closed = attemptedIds.filter(id => !openIds.has(id)).length;
+    const closed = attemptedTabs.filter(({ id }) => !openIds.has(id));
+    if (closed.length) {
+      closedBatch = closed
+        .filter(tab => tab.url || tab.pendingUrl)
+        .sort((a, b) => a.windowId - b.windowId || a.index - b.index);
+    }
     const remaining = ids.filter(id => openIds.has(id) && !protectedIds.has(id)).length;
     renderTabs(tabs, await getNativeGroupDetails(tabs));
-    const summary = [`已关闭 ${closed} 个标签页`];
+    const summary = [`已关闭 ${closed.length} 个标签页`];
     if (protectedIds.size > 0) summary.push(`已保护 ${protectedIds.size} 个标签页`);
     if (remaining > 0) summary.push(`${remaining} 个仍打开`);
     setStatus(`${summary.join("，")}。`, remaining > 0);
   } catch {
     setStatus("暂时无法确认关闭结果，请刷新此页查看。", true);
   } finally {
-    closing = false;
+    tabAction = undefined;
     for (const { jump } of cards.values()) jump.disabled = false;
     setSelection(selected);
     if (restoreKeyboardFocus && document.activeElement === document.body) {
-      const nextAction = closeSelected.disabled ? boardTitle : closeSelected;
+      const nextAction = closeSelected.disabled ? (undoClose.disabled ? boardTitle : undoClose) : closeSelected;
       nextAction.focus({ preventScroll: true });
     }
     if (refreshNeeded) queueRefresh();
+  }
+});
+
+undoClose.addEventListener("click", async event => {
+  if (undoClose.disabled || gesture) return;
+  const restoreKeyboardFocus = event.detail === 0;
+  tabAction = "restoring";
+  setStatus("");
+  setSelection(selected);
+  for (const { jump } of cards.values()) jump.disabled = true;
+
+  try {
+    const windows = await chrome.windows.getAll({ windowTypes: ["normal"] });
+    const windowIds = new Set(windows.map(({ id }) => id));
+    const failed = [];
+    for (const tab of closedBatch) {
+      const originalWindowExists = windowIds.has(tab.windowId);
+      let reopened;
+      try {
+        reopened = await chrome.tabs.create({
+          url: tab.url || tab.pendingUrl,
+          windowId: originalWindowExists ? tab.windowId : manager.windowId,
+          ...(originalWindowExists && { index: tab.index }),
+          active: false,
+        });
+      } catch {
+        failed.push(tab);
+        continue;
+      }
+
+      if (originalWindowExists && hasNativeGroup(tab)) {
+        // Keep any surviving browser group. An empty group may have been removed by the browser.
+        await chrome.tabs.group({ groupId: tab.groupId, tabIds: reopened.id }).catch(() => {});
+      }
+    }
+    const restored = closedBatch.length - failed.length;
+    closedBatch = failed;
+    const suffix = failed.length ? `，${failed.length} 个未能恢复，可重试` : "";
+    setStatus(`已恢复 ${restored} 个标签页${suffix}。`, failed.length > 0);
+  } catch {
+    setStatus("暂时无法恢复标签页，请重试。", true);
+  } finally {
+    tabAction = undefined;
+    for (const { jump } of cards.values()) jump.disabled = false;
+    setSelection(selected);
+    if (restoreKeyboardFocus && document.activeElement === document.body) {
+      (undoClose.disabled ? boardTitle : undoClose).focus({ preventScroll: true });
+    }
+    queueRefresh();
   }
 });
 

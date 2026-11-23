@@ -26,6 +26,7 @@
             <button id="select-all" type="button" disabled>全选</button>
             <button id="clear-selection" type="button" aria-keyshortcuts="Escape" title="取消选择（Esc）" disabled>取消选择</button>
           </div>
+          <button id="undo-close" type="button" aria-keyshortcuts="Control+Z" disabled>撤销关闭</button>
           <button id="close-selected" class="close-button" type="button" aria-keyshortcuts="Delete" title="关闭所选（Delete）" disabled>关闭所选</button>
         </div>
       </div>
@@ -36,13 +37,18 @@
         <div class="board-summary">
           <h2 id="board-title" tabindex="-1">标签页分类</h2>
           <p>点击卡片勾选，或拖动框选</p>
+          <p class="shortcuts">
+            <span><kbd>Delete</kbd> 关闭所选</span>
+            <span><kbd>Esc</kbd> 取消选择</span>
+            <span><kbd id="undo-shortcut">Ctrl+Z</kbd> 撤销关闭</span>
+          </p>
         </div>
         <div id="group-view-actions" class="selection-actions" role="group" aria-label="Chrome 分组展开状态" hidden>
           <button id="expand-all-groups" type="button" aria-disabled="true">全部展开</button>
           <button id="collapse-all-groups" type="button" aria-disabled="true">全部折叠</button>
         </div>
+        <p id="status" class="status" role="status"></p>
       </div>
-      <p id="status" class="status" role="status"></p>
       <p id="empty-message" class="empty-message">正在读取标签页…</p>
       <div id="tab-board" class="tab-board" role="group" aria-label="标签页卡片" hidden></div>
     </main>

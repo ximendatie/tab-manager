@@ -1,256 +1,166 @@
 <!doctype html>
 <html lang="zh-CN">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>标签页清理 · 交互使用图</title>
-<style>
-  :root { color-scheme: light; background: #ece7db; color: #292c35; font-family: system-ui, sans-serif; }
-  body { margin: 0; }
-  main { max-width: 820px; margin: auto; padding: 20px 16px; }
-  figure { margin: 0; }
-  svg { display: block; width: 100%; height: auto; background: #f9f5e9; border: 1px solid #c7baa6; box-sizing: border-box; }
-  svg text { font-family: ui-rounded, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; fill: #292c35; }
-  .paper { fill: #f9f5e9; }
-  .outline { fill: #fffdf5; stroke: #535762; stroke-width: 2.8; stroke-linejoin: round; }
-  .ink { fill: none; stroke: #39404d; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
-  .lead { fill: none; stroke: #a43d33; stroke-width: 3.8; stroke-linecap: round; stroke-linejoin: round; }
-  .eyebrow { font-size: 27px; font-weight: 650; letter-spacing: 3px; }
-  .title { font-size: 77px; font-weight: 800; letter-spacing: -2px; }
-  .intro { font-size: 33px; }
-  .heading { font-size: 41px; font-weight: 750; }
-  .label { font-size: 33px; font-weight: 720; }
-  .small { font-size: 29px; fill: #4d4e55; }
-  .number { font-size: 27px; fill: #9e382f; font-weight: 750; text-anchor: middle; }
-  .cream { fill: #f5e7bc; }
-  .green { fill: #dce7ce; }
-  .mist { fill: #e1e8ed; }
-  .brush { fill: #f1dace; }
-  .frame { fill: #fcfaf1; stroke: #888170; stroke-width: 2.6; stroke-linejoin: round; }
-  .lit .frame { stroke: #a43d33; stroke-width: 5; }
-  .current { visibility: hidden; fill: #a43d33; font-size: 23px; font-weight: 700; }
-  .lit .current { visibility: visible; }
-  .tab { fill: #fcfbf3; stroke: #737680; stroke-width: 2.3; }
-  .tab-name { font-size: 27px; font-weight: 650; }
-  .tab[data-selected="true"] { fill: #e1eaf8; stroke: #425d82; stroke-width: 3.5; }
-  .tab-group[data-closed="true"] { visibility: hidden; }
-  .tab-group[data-selected="true"] use.mark { visibility: visible; }
-  .mark { visibility: hidden; }
-  .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-  button { min-height: 44px; padding: 7px 5px; border: 1px solid #766b5e; border-radius: 8px; background: #fffdf5; color: inherit; font: 650 15px/1.2 system-ui, sans-serif; cursor: pointer; }
-  button[data-event="close"] { background: #9e382f; color: white; border-color: #9e382f; }
-  button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #425d82; background: #e1eaf8; }
-  button:focus-visible { outline: 3px solid #425d82; outline-offset: 3px; }
-  button[data-event="close"]:focus-visible { outline-color: #a43d33; }
-  #status { margin: 12px 0 0; min-height: 3em; font-size: 15px; line-height: 1.5; }
-  @media (max-width: 460px) { main { padding: 8px; } .controls { grid-template-columns: repeat(2, 1fr); } }
-</style>
-<main>
-  <figure>
-    <svg id="sheet" viewBox="0 0 1400 1400" role="img" aria-labelledby="sheet-title sheet-description">
-      <title id="sheet-title">标签页太多，一次清掉一批</title>
-      <desc id="sheet-description">从工具栏打开标签页清理，看见分组卡片。可以点击卡片、拖拽框选或勾选整组，然后关闭所选。固定标签页会保留。</desc>
-      <defs>
-        <pattern id="paper-grain" width="73" height="59" patternUnits="userSpaceOnUse">
-          <path d="M3 8h2m25 9 3-1m32 7h2m-28 19h3M12 45l2 1m48 8 1-1" stroke="#826d54" stroke-width="1.5" opacity=".14"/>
-        </pattern>
-        <g id="check">
-          <path d="M2 3C7 1 20 1 24 3L24 24 2 24Z" fill="#516d95" stroke="#394d70" stroke-width="2"/>
-          <path d="m7 13 4 4 8-9" fill="none" stroke="#fffdf5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <g id="pin">
-          <path d="m5 4 14 0-2 4 0 5 4 4-16 0 4-4V8Z" fill="#d9ad58" stroke="#6b4e23" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M13 17v9" stroke="#6b4e23" stroke-width="2.4" stroke-linecap="round"/>
-        </g>
-        <g id="pointer">
-          <path d="m2 2 7 39 8-11 10 11 7-6-10-10 14-4Z" fill="#fffdf5" stroke="#39404d" stroke-width="3.2" stroke-linejoin="round"/>
-          <path d="m11 1 3-8m4 13 8-4" class="lead"/>
-        </g>
-        <g id="mini-cards">
-          <rect class="outline" width="124" height="58" rx="10"/>
-          <rect class="outline" x="143" width="124" height="58" rx="10"/>
-          <rect class="outline" y="71" width="124" height="58" rx="10"/>
-          <rect class="outline" x="143" y="71" width="124" height="58" rx="10"/>
-          <path d="M15 22h45m-45 13h62m82-13h34m-34 13h56M15 93h46m-46 14h55m88-14h39m-39 14h57" class="ink" opacity=".47"/>
-        </g>
-      </defs>
-      <path class="paper" d="M0 0h1400v1400H0Z"/>
-      <path fill="url(#paper-grain)" d="M0 0h1400v1400H0Z"/>
-      <path class="brush" d="M70 144q243-16 674-19l-13 17 17 12-672 16 8-12Z"/>
-      <text class="eyebrow" x="76" y="77">TAB MANAGER · 使用指南</text>
-      <text class="title" x="69" y="161">标签页太多，一次清掉一批</text>
-      <text class="intro" x="76" y="218">打开分类面板，挑出要关的页面，固定页会保留。</text>
-      <path d="M1223 79l-13 34m44-23-21 34m42-8-24 19" class="lead"/>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>试着清理标签页 · Tab Manager</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+      color: #242e2b;
+      background: #faf9f6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(100% - 32px, 660px); margin: 32px auto 64px; }
+    a { color: #356459; text-underline-offset: .2em; }
+    header { margin: clamp(28px, 5vh, 50px) 0 24px; }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.2; letter-spacing: -.04em; }
+    header p { margin: 12px 0 0; color: #50625b; }
+    .board {
+      background: #e7efe7; border: 1px solid #c9d8cb;
+      border-radius: 20px; padding: clamp(12px, 3vw, 22px);
+    }
+    .board-header { display: flex; align-items: baseline; justify-content: space-between; margin: 0 3px 14px; }
+    h2 { margin: 0; font-size: 18px; }
+    .count { color: #466052; font-size: 14px; font-variant-numeric: tabular-nums; }
+    ul { padding: 0; margin: 0; list-style: none; display: grid; gap: 8px; }
+    .card {
+      display: flex; align-items: center; gap: 12px; min-height: 70px;
+      border: 2px solid transparent; padding: 10px 14px; border-radius: 12px; background: #fff;
+    }
+    .card[hidden] { display: none; }
+    .illustration { width: 46px; height: 42px; flex-shrink: 0; }
+    .card strong { font-size: clamp(17px, 3vw, 21px); }
+    .pin, .check { margin-inline-start: auto; flex-shrink: 0; }
+    .pin { display: inline-flex; align-items: center; gap: 4px; color: #735329; font-size: 13px; }
+    .pin svg { width: 16px; height: 16px; }
+    .check { width: 23px; height: 23px; border: 2px solid #97a69f; border-radius: 6px; }
+    [data-state="selected"] .ordinary { border-color: #468474; background: #edf7f1; }
+    [data-state="selected"] .check { border-color: #215e4e; background: #215e4e; position: relative; }
+    [data-state="selected"] .check::after {
+      content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px;
+      border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 10px; }
+    button {
+      background: #fff; font: inherit; font-weight: 650; color: #364c43;
+      border: 1px solid #b9c6bd; padding: 8px 16px; min-height: 44px; border-radius: 9px; cursor: pointer;
+    }
+    button[data-next] { background: #215e4e; color: white; border-color: #215e4e; }
+    button:hover { border-color: #215e4e; }
+    :is(button, a):focus-visible { outline: 3px solid #227a8f; outline-offset: 3px; }
+    #status { margin: 0; min-height: 3em; color: #485d52; }
+    @media (max-width: 420px) {
+      main { margin-top: 20px; }
+      .card { gap: 8px; padding: 9px; }
+      .illustration { width: 38px; }
+      button { flex: 1; padding: 8px; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .board[data-state="open"] .ordinary { animation: appear .18s ease-out; }
+      @keyframes appear { from { opacity: .25; transform: translateY(3px); } }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <a href="./">← Tab Manager 项目主页</a>
+    <header>
+      <h1>试着清理标签页</h1>
+      <p>用两张食谱练习批量关闭，再把它们恢复。带锁的换算表会一直保留。</p>
+    </header>
 
-      <g data-state="ready" class="lit">
-        <path class="frame" d="M76 265Q685 260 1324 266l2 288Q735 558 74 555Z"/>
-        <path class="mist" d="M101 311q311-13 684-5l-3 225-688 2Z"/>
-        <path class="outline" d="M114 300q317-7 649-1l4 221-653 3Z"/>
-        <path d="M115 345q263-3 649-2M125 522l595 0" class="ink"/>
-        <g fill="#a43d33"><circle cx="140" cy="322" r="6"/><circle cx="159" cy="322" r="6" opacity=".56"/><circle cx="178" cy="322" r="6" opacity=".28"/></g>
-        <text class="tab-name" x="208" y="331">标签页分类</text>
-        <text class="tab-name" x="134" y="381">周末计划</text>
-        <text class="tab-name" x="532" y="381">书签与资料</text>
-        <path d="M513 365v133" class="ink" opacity=".35"/>
-        <g data-tab="0" class="tab-group">
-          <rect class="tab" x="133" y="393" width="169" height="48" rx="7"/>
-          <text class="tab-name" x="147" y="425">路线</text><use class="mark" href="#check" x="265" y="404"/>
-        </g>
-        <g data-tab="1" class="tab-group">
-          <rect class="tab" x="320" y="393" width="168" height="48" rx="7"/>
-          <text class="tab-name" x="334" y="425">餐厅</text><use class="mark" href="#check" x="452" y="404"/>
-        </g>
-        <g data-tab="2" class="tab-group">
-          <rect class="tab" x="133" y="455" width="169" height="48" rx="7"/>
-          <text class="tab-name" x="147" y="487">日历</text><use href="#pin" x="264" y="464"/>
-        </g>
-        <g data-tab="3" class="tab-group">
-          <rect class="tab" x="533" y="393" width="198" height="48" rx="7"/>
-          <text class="tab-name" x="547" y="425">阅读清单</text><use class="mark" href="#check" x="697" y="404"/>
-        </g>
-        <circle cx="839" cy="330" r="25" class="brush"/><text class="number" x="839" y="340">1</text>
-        <text class="heading" x="879" y="346">打开清理面板</text>
-        <text class="small" x="820" y="414">从浏览器工具栏打开。</text>
-        <text class="small" x="820" y="461">先看已有分组，其余按域名。</text>
-        <text class="current" x="1153" y="519">当前步骤</text>
-      </g>
-
-      <path class="lead" d="M700 558v29m0-1C566 586 376 589 266 596q-6 8-1 49m435-59q194 1 417 10 7 11 0 49m-417-57v57m-446-11 11 12 13-12m410 1 12 12 12-12m394 0 11 12 13-12"/>
-      <circle cx="101" cy="604" r="23" class="brush"/><text class="number" x="101" y="613">2</text>
-      <text class="small" x="137" y="613">选择方式</text>
-
-      <g data-state="single" transform="translate(74 0)">
-        <path class="frame" d="M2 656q178-4 401 0l-2 323q-210-3-400 1Z"/>
-        <path class="cream" d="m24 686 293-6 6 39-300 8 7-16Z"/>
-        <text class="heading" x="29" y="722">点击卡片</text>
-        <use href="#mini-cards" x="61" y="754"/>
-        <rect x="61" y="754" width="124" height="58" rx="10" fill="#c7d8ef" fill-opacity=".65" stroke="#516d95" stroke-width="3.1"/>
-        <use href="#check" x="150" y="768"/>
-        <use href="#pointer" x="170" y="802"/>
-        <text class="small" x="28" y="936">单独选一页或几页</text>
-        <text class="current" x="278" y="963">当前步骤</text>
-      </g>
-      <g data-state="marquee" transform="translate(499 0)">
-        <path class="frame" d="M1 656q195-4 400-1l2 324q-221 4-402 0Z"/>
-        <path class="mist" d="m22 685 305-4-8 13 5 24-303 7 5-17Z"/>
-        <text class="heading" x="28" y="722">拖动框选</text>
-        <rect class="outline" x="66" y="754" width="124" height="58" rx="10"/>
-        <rect class="outline" x="209" y="754" width="124" height="58" rx="10"/>
-        <rect class="outline" x="66" y="825" width="124" height="58" rx="10"/>
-        <path d="M81 775h46m96 1h46m-188 72h47" class="ink" opacity=".47"/>
-        <path d="M56 746q145-2 284 2l2 146-285-3Z" fill="#c7d8ef" fill-opacity=".59" stroke="#516d95" stroke-width="3.2" stroke-dasharray="10 7" stroke-linejoin="round"/>
-        <use href="#check" x="155" y="767"/>
-        <use href="#check" x="299" y="767"/>
-        <use href="#pin" x="152" y="838"/>
-        <use href="#pointer" x="302" y="870"/>
-        <text class="small" x="28" y="936">在面板上拖出选框</text>
-        <text class="current" x="278" y="963">当前步骤</text>
-      </g>
-      <g data-state="group" transform="translate(924 0)">
-        <path class="frame" d="M2 655q199 4 400 1l-2 323q-215-3-399 1Z"/>
-        <path class="green" d="m23 686 297-5 1 40-296 5 6-16Z"/>
-        <text class="heading" x="29" y="722">勾选整组</text>
-        <path d="M61 755h270" class="ink" opacity=".54"/>
-        <text class="small" x="69" y="790">周末计划</text><use href="#check" x="299" y="766"/>
-        <use href="#mini-cards" transform="translate(63 805) scale(1 .65)"/>
-        <use href="#check" x="151" y="815"/><use href="#check" x="293" y="815"/>
-        <use href="#pin" x="152" y="859"/>
-        <text class="small" x="28" y="936">从分组标题一键选中</text>
-        <text class="current" x="278" y="963">当前步骤</text>
-      </g>
-      <path class="lead" d="M265 984v34q213 16 435 14 223 1 417-14v-34m-417 0v86m-13-12 13 13 13-13"/>
-
-      <g data-state="closed">
-        <path class="frame" d="M76 1080q571-5 1247 0l2 217q-760 5-1251 1Z"/>
-        <circle cx="123" cy="1139" r="25" class="brush"/><text class="number" x="123" y="1149">3</text>
-        <path class="brush" d="M161 1121q57-7 221-5l-8 33-211 9Z"/>
-        <text class="heading" x="163" y="1155">关闭所选</text>
-        <text class="small" id="result" x="104" y="1222">确认选中项后，一次关掉。</text>
-        <path d="M667 1113v145" class="ink" opacity=".36"/>
-        <use href="#pin" transform="translate(727 1151) scale(1.7)"/>
-        <text class="heading" x="790" y="1190">固定页保留</text>
-        <text class="small" x="790" y="1240">已固定的「日历」始终打开。</text>
-        <text class="current" x="1153" y="1280">当前步骤</text>
-      </g>
-      <text class="small" x="76" y="1353">操作流程依据 Tab Manager 2.4.0，标签页内容为演示示例。</text>
-    </svg>
-    <figcaption>
-      <div class="controls" role="group" aria-label="演示操作">
-        <button type="button" data-event="single" aria-pressed="false">点击卡片</button>
-        <button type="button" data-event="marquee" aria-pressed="false">拖动框选</button>
-        <button type="button" data-event="group" aria-pressed="false">勾选整组</button>
-        <button type="button" data-event="close">关闭所选</button>
+    <section class="board" data-state="open" aria-labelledby="group-title">
+      <div class="board-header">
+        <h2 id="group-title">周末烘焙</h2>
+        <span class="count">3 个标签页</span>
       </div>
-      <p id="status" role="status">先选一种方式试试。每种方式都会从同一组示例标签页开始。</p>
-    </figcaption>
-  </figure>
-</main>
-<script>
-  const tabs = [
-    { id: 0, pinned: false },
-    { id: 1, pinned: false },
-    { id: 2, pinned: true },
-    { id: 3, pinned: false },
-  ];
-  const choices = {
-    single: { candidates: [0], description: '点击「路线」卡片，选中了 1 页。' },
-    marquee: { candidates: [0, 1, 2], description: '框选了 2 个普通页，选框内固定的「日历」仍受保护。' },
-    group: { candidates: [0, 1, 2], description: '「周末计划」选中了 2 个普通页，固定页跳过。' },
-  };
+      <ul>
+        <li class="card">
+          <svg class="illustration" viewBox="0 0 64 50" aria-hidden="true">
+            <g stroke="#345561" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5">
+              <path d="M43 12h5c10 1 9 16-1 17h-5" fill="none"/>
+              <path d="M8 9l8 5 4 27c1 3 19 4 23 0l2-30z" fill="#d4e7eb"/>
+              <path d="M19 28q11 3 24 0l-2 12q-10 3-20-1z" stroke="none" fill="#96bfca"/>
+              <path d="M26 18h7m-6 6h4m-4 6h7" fill="none"/>
+            </g>
+          </svg>
+          <strong>常用换算表</strong>
+          <span class="pin">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.8" y="7" width="10.4" height="7.4" rx="1.6"/><path d="M5 7V4.8a3 3 0 0 1 6 0V7"/></g></svg>
+            已固定
+          </span>
+        </li>
+        <li class="card ordinary">
+          <svg class="illustration" viewBox="0 0 64 50" aria-hidden="true">
+            <g stroke="#805b32" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5">
+              <path d="M7 20l32-11 16 11-1 17-32 9L7 36z" fill="#d99f62"/>
+              <path d="M7 20l17 10 31-10-16-11z" fill="#ffe1a1"/>
+              <path d="M24 30l-1 15m9-14 14-4" fill="none"/>
+              <path d="M28 10q2-7 11-7 8 0 11 9l-21 5z" fill="#f2c655"/>
+              <path d="M32 13l4-6m3 5 1-5m3 4 1-3" stroke-width="1.2"/>
+            </g>
+          </svg>
+          <strong>柠檬磅蛋糕</strong><span class="check" aria-hidden="true"></span>
+        </li>
+        <li class="card ordinary">
+          <svg class="illustration" viewBox="0 0 64 50" aria-hidden="true">
+            <g stroke="#7b573b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+              <path d="M29 12q8-8 18-2c9 5 12 16 4 24-5 7-16 7-23 2-8-6-8-16 1-24z" fill="#d6a575"/>
+              <path d="M11 21c7-11 22-9 28-1 8 11 1 23-11 25-15 2-25-11-17-24z" fill="#eac391"/>
+              <path d="m17 25 5-2m4 6 4-3m-6 12 4-3m-13-4 2 2m29-15 2 1m-9-3 3-2m6 11 2-2" fill="none"/>
+            </g>
+          </svg>
+          <strong>燕麦饼干</strong><span class="check" aria-hidden="true"></span>
+        </li>
+      </ul>
+    </section>
 
-  const start = { at: 'ready', selected: [], closed: [] };
-  let current = start;
-  const states = document.querySelectorAll('[data-state]');
-  const cards = document.querySelectorAll('[data-tab]');
-  const buttons = document.querySelectorAll('[data-event]');
-  const result = document.querySelector('#result');
-  const status = document.querySelector('#status');
+    <div class="actions" role="group" aria-label="尝试清理操作">
+      <button type="button" data-event="select" data-next>框选</button>
+      <button type="button" data-event="close">关闭所选</button>
+      <button type="button" data-event="undo">撤销关闭</button>
+    </div>
+    <p id="status" role="status">点「框选」，看看哪些示例页会被选中。</p>
+  </main>
 
-  function render() {
-    for (const state of states) state.classList.toggle('lit', state.dataset.state === current.at);
-    for (const button of buttons) {
-      if (button.hasAttribute('aria-pressed')) {
-        button.setAttribute('aria-pressed', String(button.dataset.event === current.at));
-      }
-    }
-    for (const card of cards) {
-      const id = Number(card.dataset.tab);
-      const selected = String(current.selected.includes(id));
-      card.dataset.selected = selected;
-      card.querySelector('.tab').dataset.selected = selected;
-      card.dataset.closed = String(current.closed.includes(id));
-    }
-    result.textContent = current.at === 'closed' ? `已关闭 ${current.closed.length} 个普通标签页。` : '确认选中项后，一次关掉。';
-  }
-
-  function transition(state, event) {
-    if (event === 'close') {
-      if (state.selected.length === 0) return {
-        next: state,
-        message: state.at === 'closed' ? '这批已关完。试一种选择方式再来一次。' : '先选择要关闭的标签页，再点「关闭所选」。',
-      };
-      const closed = tabs.filter(tab => !tab.pinned && state.selected.includes(tab.id)).map(tab => tab.id);
-      return {
-        next: { at: 'closed', selected: [], closed },
-        message: `已关闭 ${closed.length} 个普通标签页，固定的「日历」仍打开。`,
-      };
-    }
-
-    const choice = choices[event];
-    const selected = tabs.filter(tab => !tab.pinned && choice.candidates.includes(tab.id)).map(tab => tab.id);
-    return {
-      next: { at: event, selected, closed: [] },
-      message: choice.description + ' 现在可以关闭所选。',
+  <script>
+    const states = {
+      open: { next: "select", count: "3 个标签页", on: { select: "selected" } },
+      selected: { next: "close", count: "已选 2 个", on: { close: "closed" } },
+      closed: { next: "undo", count: "1 个标签页", on: { undo: "open" } }
     };
-  }
-
-  function dispatch(event) {
-    const { next, message } = transition(current, event);
-    current = next;
-    status.textContent = message;
-    render();
-  }
-
-  for (const button of buttons) button.addEventListener('click', () => dispatch(button.dataset.event));
-  render();
-</script>
+    const feedback = {
+      select: "已选中两张食谱，固定的换算表仍受保护。",
+      close: "两张食谱已关闭，换算表还在。点「撤销关闭」可以恢复。",
+      undo: "两张食谱已恢复，可以再试一次。"
+    };
+    const board = document.querySelector(".board");
+    const status = document.querySelector("#status");
+    const buttons = document.querySelectorAll("[data-event]");
+    function refusal(state, event) {
+      if (event === "undo") return "先关闭一批标签页，再试试撤销。";
+      if (event === "close") return "还没有选中的标签页，请先框选。";
+      return state === "selected" ? "两张食谱已经选中，可以点「关闭所选」。" : "两张食谱已关闭，请先撤销关闭。";
+    }
+    for (const button of buttons) {
+      button.addEventListener("click", () => {
+        const current = board.dataset.state;
+        const event = button.dataset.event;
+        const next = states[current].on[event];
+        if (!next) {
+          status.textContent = refusal(current, event);
+          return;
+        }
+        board.dataset.state = next;
+        board.querySelector(".count").textContent = states[next].count;
+        for (const card of board.querySelectorAll(".ordinary")) card.hidden = next === "closed";
+        for (const action of buttons) action.toggleAttribute("data-next", action.dataset.event === states[next].next);
+        status.textContent = feedback[event];
+      });
+    }
+  </script>
+</body>
 </html>

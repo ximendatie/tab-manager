@@ -1,87 +1,66 @@
 # Tab Manager · 标签页清理
 
-**[直接下载 v2.4.4 ZIP][release-zip]** · [安装步骤（Chrome / Ego Lite）](#安装)
+在几个浏览器窗口里查资料，最费时间的往往是逐页确认「哪几个可以关」。Tab Manager 把所有普通窗口的标签页铺成卡片。拖动鼠标就能跨组框选，核对数量后一起关闭。带锁的固定页会自动跳过。
 
-浏览器开了好几个窗口，临时查资料的标签页散得到处都是。逐个翻找再关，既慢又容易关掉还要用的页面。Tab Manager 把各窗口的标签页铺在同一个面板里，优先沿用浏览器已有的标签页分组，其余按域名归类。你可以选好一批一起关，已固定的标签页会保留。
+**[下载当前 main 版][main-zip]** · [下载 v2.4.4 发布包][release-zip] · [Chrome / Ego Lite 安装步骤](#安装) · [项目主页](https://ximendatie.github.io/tab-manager/)
 
-[项目主页 · Project website](https://ximendatie.github.io/tab-manager/)
+## 看一次实际操作
 
-## 使用演示
+![用示例标签页拖动框选、批量关闭，再撤销关闭；固定页始终保留。](docs/extension-demo.gif)
 
-### 插件实拍
+示例中，选框覆盖了一个固定页和三个普通页。点击「关闭所选」后，固定页仍在。点击「撤销关闭」，三个普通页重新出现。
 
-![标签页清理实拍动图。拖动跨组框选后点击「关闭所选」，示例固定页「常用换算表」仍在。](docs/extension-demo.gif)
-
-[查看框选截图](docs/extension-screenshot.png)。图中使用示例标签页，浅色底纹标示分组，带锁的白底卡片表示固定页。
-
-### 交互指南
-
-[![标签页清理使用图：打开分类面板，点击卡片、拖动框选或勾选整组，最后关闭所选并保留固定标签页](docs/usage.png)](https://ximendatie.github.io/tab-manager/usage.html)
-
-[打开交互演示](https://ximendatie.github.io/tab-manager/usage.html)，任选一种选择方式，再点击「关闭所选」看结果。演示使用示例标签页。
-
-## 安装
-
-1. [下载 v2.4.4 ZIP][release-zip] 并解压。
-2. 在 Chrome 或 Ego Lite 的地址栏打开 `chrome://extensions`，开启右上角的「开发者模式」。
-3. 点击「加载未打包的扩展程序」，选择解压后包含 `manifest.json` 的 `tab-manager` 文件夹。
-4. 从浏览器工具栏的扩展程序菜单打开「标签页清理」。常用的话，可以点击菜单里的图钉把它固定在工具栏。
+[查看框选截图](docs/extension-screenshot.png) · [试一遍选择、关闭和撤销](https://ximendatie.github.io/tab-manager/usage.html)
 
 ## 批量清理标签页
 
-1. **打开面板。** 点击工具栏里的扩展图标。面板汇总当前浏览器个人资料中各窗口的标签页。已有分组沿用原组名，未分组的标签页按域名归类。
-2. **选出要关闭的标签页。** 点击卡片或复选框可逐个勾选。从卡片或空白处按住鼠标左键拖动可框选多张，框选可以累加。要处理整个分组，勾选组标题旁的「整组」。
-3. **核对后关闭。** 点击卡片左侧的网站图标或跳转箭头可切换到原标签页查看。确认勾选项后，点击「关闭所选」。想重新选时可以点「取消选择」，也可以按 `Esc`。
+1. **找到要清理的一批。** 点击工具栏里的「标签页清理」。面板优先沿用浏览器原有分组，其余标签页按域名归类。分组用浅色底纹区分，卡片标题最多显示三行。点击卡片左侧的网站图标可切换到原页核对。
+2. **勾选，再关闭。** 点击卡片可逐个勾选，拖动鼠标可一次框选多张，也可以从页面底部空白处向上框选。勾选组名旁的「整组」可选中该组所有普通页。看一眼「关闭所选」按钮上的数量，再点击关闭。
+3. **误关时撤销。** 在同一管理页点「撤销关闭」，即可重新打开最近一批关闭的网址。会优先恢复到原窗口。如果原窗口已经关闭，标签页会在管理页所在窗口打开。刷新或关闭管理页会清空这次撤销记录。
 
-已固定的标签页会从单选、整组、框选和全选中排除。执行批量关闭前，扩展会再检查一次固定状态。
+### 面板快捷键
 
-## 自定义域名组名
+| 操作 | macOS | Windows / Linux |
+| --- | --- | --- |
+| 关闭所选 | `Delete`（⌫） | `Delete` |
+| 取消选择 | `Esc` | `Esc` |
+| 撤销最近一次关闭 | `⌘ Z` | `Ctrl Z` |
 
-在 `manifest.json` 同级创建 `domain-labels.local.json`。键填主机名，值填要显示的组名。主机名省略协议、端口和路径，`www.` 前缀会自动归一。
+## 安装
+
+1. 要使用上面演示的撤销关闭和三行标题，[下载 main 源码 ZIP][main-zip] 并解压。也可以选择[已发布的 v2.4.4 ZIP][release-zip]。
+2. 在 Chrome 或 Ego Lite 的地址栏打开 `chrome://extensions`，开启右上角的「开发者模式」。
+3. 点击「加载未打包的扩展程序」，选择包含 `manifest.json` 的文件夹。main 源码解压后是 `tab-manager-main`，v2.4.4 发布包解压后是 `tab-manager`。
+4. 打开工具栏的扩展程序菜单，找到「标签页清理」，点击旁边的图钉即可固定。
+
+## 自定义域名和标题
+
+默认以域名作为组名。在 `manifest.json` 同级创建 `domain-labels.local.json`，可以给分组起简称、把多个站点归入同一组，或隐藏卡片标题末尾重复的网站名。下面用食谱网站举例。
 
 ```json
 {
-  "recipes.example.com": "食谱",
-  "guides.example.com": { "groupWith": "recipes.example.com" }
+  "recipes.example.com": {
+    "label": "食谱",
+    "titleSuffix": " - 烘焙手册"
+  },
+  "guides.example.com": { "groupWith": "recipes.example.com" },
+  "notes.example.com": "笔记"
 }
 ```
 
-配置 `groupWith` 可将一个域名归入另一个域名组。保存后刷新管理页。未配置简称时显示域名，悬停组名可查看域名。配置文件已加入 `.gitignore`。
+这里两个食谱站点会归到「食谱」组，「柠檬蛋糕 - 烘焙手册」在卡片上显示为「柠檬蛋糕」。只想改组名时，像「笔记」一样填一个字符串就行。键使用主机名，省略协议、端口和路径。保存后刷新管理页生效。
 
 ## 常见问题
 
-### 能跨窗口批量关闭标签页吗？
+**框选范围里有固定页怎么办？** 固定页用锁图标标记。单选、整组、全选和框选都会跳过固定页，执行关闭前还会再检查一次固定状态。
 
-可以。面板会汇总当前浏览器个人资料里各个普通窗口的标签页。你可以跨组拖动框选，也可以点击卡片或使用「整组」，再点击「关闭所选」。
-
-### 固定标签页会被框选或关闭吗？
-
-固定页会留在面板里并标有锁。即使框选范围覆盖了固定页，它也不会被选中。点击「关闭所选」后，扩展会再次检查固定状态并跳过已固定的标签页。
-
-### 怎么在 Chrome 或 Ego Lite 安装？
-
-从 GitHub Releases 下载扩展 ZIP 并解压。在地址栏打开 `chrome://extensions`，开启「开发者模式」，点击「加载未打包的扩展程序」，选择包含 `manifest.json` 的目录。
-
-### 标签页标题和域名简称会上传吗？
-
-扩展在本地处理标签页标题和网址，域名简称也从本机配置文件读取。
+**标签页标题、网址和简称保存在哪里？** 扩展在本地处理这些数据。个性化配置文件已加入 `.gitignore`，下载后可自行创建。
 
 ## FAQ in English
 
-### Can I close tabs across multiple browser windows?
+**Can I close tabs across windows and undo a batch?** Tab Manager displays tabs from all normal windows in your current Chrome or Ego Lite profile. Drag to select cards across groups, then click **关闭所选** to close them. Pinned tabs stay open. In the current `main` version, **撤销关闭** reopens the URLs from the last batch while the manager page remains open.
 
-Yes. The dashboard lists tabs from every normal window in the current browser profile. Drag a selection box across groups, click individual cards, or select an entire group, then click **Close selected** (`关闭所选`).
+**How do I install it?** Unzip the download, open `chrome://extensions`, enable **Developer mode**, and choose **Load unpacked**. Select the folder containing `manifest.json`.
 
-### Does bulk closing affect pinned tabs?
-
-Pinned tabs stay open. Their cards show a lock and are skipped when you drag-select tabs. The extension checks pin status again before closing the selected tabs.
-
-### How do I install Tab Manager in Chrome or Ego Lite?
-
-Download and unzip the extension from GitHub Releases. Open `chrome://extensions`, turn on **Developer mode**, select **Load unpacked**, and choose the folder containing `manifest.json`.
-
-### Does the extension upload my tab titles or domain aliases?
-
-The extension processes tab titles and URLs locally. It reads domain aliases from the optional `domain-labels.local.json` file alongside the manifest.
-
+[main-zip]: https://github.com/ximendatie/tab-manager/archive/refs/heads/main.zip
 [release-zip]: https://github.com/ximendatie/tab-manager/releases/download/v2.4.4/tab-manager-v2.4.4.zip
